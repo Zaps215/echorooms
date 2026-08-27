@@ -1,0 +1,55 @@
+# EchoRooms
+
+EchoRooms is a realtime messaging workspace built with vanilla HTML, CSS, JavaScript, Supabase, and Vite.
+
+## Requirements
+
+- Node.js 20 or newer
+- A Supabase project
+- Supabase CLI for applying local migrations
+
+## Setup
+
+```bash
+npm install
+cp .env.example .env.local
+```
+
+Add the project values to `.env.local`:
+
+```text
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+Apply the first migration through the Supabase dashboard SQL editor or with the Supabase CLI after linking your project:
+
+```bash
+supabase db push
+```
+
+Start the local frontend:
+
+```bash
+npm run dev
+```
+
+Open the URL printed by Vite. The initial screen is the Shared Foundation slice. Identity Service is the next implementation slice.
+
+## Commands
+
+- `npm run dev` starts the Vite development server.
+- `npm run build` creates a production build in `dist/`.
+- `npm run preview` serves the production build locally.
+
+## Project Structure
+
+- `index.html` contains the initial application shell.
+- `css/` contains the visual foundation.
+- `js/` contains the Supabase client and frontend modules.
+- `supabase/migrations/` contains database migrations and RLS policies.
+- `supabase/functions/` is reserved for secure Edge Functions.
+- `echorooms-services/` contains the numbered service build plans.
+- `ECHOROOMS_PROGRAM.md` is the complete product specification.
+
+Never commit `.env.local` or service-role keys.
