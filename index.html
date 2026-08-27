@@ -9,6 +9,12 @@
   </head>
   <body>
     <main class="auth-shell" id="auth-shell" aria-labelledby="auth-title">
+      <div class="auth-intro">
+        <p class="eyebrow">A workspace for what matters</p>
+        <p class="auth-quote">Talk freely.<br /><em>Keep the signal.</em></p>
+        <div class="auth-signal" aria-hidden="true"><span></span><span></span><span></span></div>
+        <p class="auth-note">Your conversations, decisions, and next steps in one calm place.</p>
+      </div>
       <section class="auth-panel">
         <div class="brand-row">
           <span class="brand-mark" aria-hidden="true">E</span>
@@ -22,12 +28,6 @@
           <h2 id="auth-heading">Keep the useful parts.</h2>
           <p>Sign in to return to your rooms, or create an account to start one.</p>
         </div>
-        <div class="auth-intro">
-          <p class="eyebrow">A workspace for what matters</p>
-          <p class="auth-quote">Talk freely.<br /><em>Keep the signal.</em></p>
-          <div class="auth-signal" aria-hidden="true"><span></span><span></span><span></span></div>
-          <p class="auth-note">Your conversations, decisions, and next steps in one calm place.</p>
-        </div>
         <form class="auth-form" id="auth-form">
           <label for="display-name" id="display-name-label">Display name</label>
           <input id="display-name" name="displayName" type="text" autocomplete="name" placeholder="Your name" required />
@@ -35,22 +35,11 @@
           <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required />
           <label for="password">Password</label>
           <input id="password" name="password" type="password" autocomplete="current-password" placeholder="At least 6 characters" minlength="6" required />
-            <button class="auth-submit" type="submit"><span>Create account</span><span aria-hidden="true">&#8594;</span></button>
+          <button class="auth-submit" type="submit"><span>Create account</span><span aria-hidden="true">&#8594;</span></button>
           <p class="form-message" id="auth-message" role="status" aria-live="polite"></p>
         </form>
-          <section class="otp-panel" id="otp-panel" hidden>
-            <div class="otp-heading"><span class="otp-icon" aria-hidden="true">&#10003;</span><div><p class="eyebrow">Extra security</p><h3>Use a one-time code</h3></div></div>
-            <p>We will send a six-digit code to your email. It expires shortly and can only be used once.</p>
-            <form class="otp-form" id="otp-form">
-              <label for="otp-email">Email</label>
-              <input id="otp-email" type="email" autocomplete="email" placeholder="you@example.com" required />
-              <button class="otp-send" id="otp-send" type="submit">Send code</button>
-              <label for="otp-code">Verification code</label>
-              <input id="otp-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required />
-              <button class="auth-submit" id="otp-verify" type="button"><span>Verify code</span><span aria-hidden="true">&#8594;</span></button>
-            </form>
-          </section>
-          <button class="otp-toggle" id="otp-toggle" type="button">Sign in with a one-time code</button>
+        <div class="auth-divider"><span>or continue with</span></div>
+        <button class="google-button" id="google-button" type="button"><span class="google-mark" aria-hidden="true">G</span><span>Continue with Google</span></button>
         <button class="auth-toggle" id="auth-toggle" type="button">Already have an account? Sign in</button>
       </section>
     </main>
