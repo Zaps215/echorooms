@@ -14,6 +14,7 @@ const displayName = document.querySelector("#display-name");
 const displayNameLabel = document.querySelector("#display-name-label");
 const authSubmit = document.querySelector(".auth-submit");
 const signOutButton = document.querySelector("#sign-out-button");
+const deleteAccountButton = document.querySelector("#delete-account-button");
 const googleButton = document.querySelector("#google-button");
 
 let isSignInMode = false;
@@ -108,6 +109,19 @@ signOutButton.addEventListener("click", async () => {
   const { error } = await supabase.auth.signOut();
   signOutButton.disabled = false;
   if (error) showAuthError();
+});
+
+deleteAccountButton.addEventListener("click", async () => {
+  if (!supabase || !window.confirm("Delete your EchoRooms account and all of its data? This cannot be undone.")) return;
+  deleteAccountButton.disabled = true;
+  const { error } = await supabase.rpc("delete_my_account");
+  if (error) {
+    deleteAccountButton.disabled = false;
+    showAuthError();
+    return;
+  }
+  await supabase.auth.signOut();
+  showAuth();
 });
 
 if (isSupabaseConfigured) {
