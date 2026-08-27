@@ -14,8 +14,16 @@ const displayName = document.querySelector("#display-name");
 const displayNameLabel = document.querySelector("#display-name-label");
 const authSubmit = document.querySelector(".auth-submit");
 const signOutButton = document.querySelector("#sign-out-button");
+const otpPanel = document.querySelector("#otp-panel");
+const otpToggle = document.querySelector("#otp-toggle");
+const otpForm = document.querySelector("#otp-form");
+const otpEmail = document.querySelector("#otp-email");
+const otpCode = document.querySelector("#otp-code");
+const otpSend = document.querySelector("#otp-send");
+const otpVerify = document.querySelector("#otp-verify");
 
 let isSignInMode = false;
+let isOtpMode = false;
 
 function setAuthMessage(message, isError = false) {
   authMessage.textContent = message;
@@ -47,6 +55,46 @@ function showAuth() {
 }
 
 authToggle.addEventListener("click", () => setAuthMode(!isSignInMode));
+
+otpToggle.addEventListener("click", () => {
+  isOtpMode = !isOtpMode;
+  authForm.hidden = isOtpMode;
+  otpPanel.hidden = !isOtpMode;
+  authToggle.hidden = isOtpMode;
+  otpToggle.textContent = isOtpMode ? "Use email and password instead" : "Sign in with a one-time code";
+  setAuthMessage("");
+});
+
+otpForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!isSupabaseConfigured) {
+    setAuthMessage("Add Supabase values to .env.local before using authentication.", true);
+    return;
+  }
+  otpSend.disabled = true;
+  setAuthMessage("Sending your code...");
+  const { error } = await supabase.auth.signInWithOtp({ email: otpEmail.value, options: { shouldCreateUser: false } });
+  otpSend.disabled = false;
+  if (error) {
+    setAuthMessage(error.message, true);
+    return;
+  }
+  setAuthMessage("Code sent. Check your inbox, then enter it below.");
+  otpCode.focus();
+});
+
+otpVerify.addEventListener("click", async () => {
+  if (!otpForm.reportValidity()) return;
+  otpVerify.disabled = true;
+  setAuthMessage("Verifying your code...");
+  const { data, error } = await supabase.auth.verifyOtp({ email: otpEmail.value, token: otpCode.value, type: "email" });
+  otpVerify.disabled = false;
+  if (error) {
+    setAuthMessage(error.message, true);
+    return;
+  }
+  if (data.session) showApp();
+});
 
 authForm.addEventListener("submit", async (event) => {
   event.preventDefault();
