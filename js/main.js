@@ -23,6 +23,10 @@ function setAuthMessage(message, isError = false) {
   authMessage.classList.toggle("is-error", isError);
 }
 
+function showAuthError() {
+  setAuthMessage("We couldn't complete that request. Check your details and try again.", true);
+}
+
 function setAuthMode(signIn) {
   isSignInMode = signIn;
   authModeLabel.textContent = signIn ? "Welcome back" : "Start a room";
@@ -51,7 +55,7 @@ authToggle.addEventListener("click", () => setAuthMode(!isSignInMode));
 
 googleButton.addEventListener("click", async () => {
   if (!isSupabaseConfigured) {
-    setAuthMessage("Add Supabase values to .env.local before using authentication.", true);
+    setAuthMessage("Sign-in is temporarily unavailable. Please try again later.", true);
     return;
   }
   googleButton.disabled = true;
@@ -61,13 +65,13 @@ googleButton.addEventListener("click", async () => {
     options: { redirectTo: window.location.origin },
   });
   googleButton.disabled = false;
-  if (error) setAuthMessage(error.message, true);
+  if (error) showAuthError();
 });
 
 authForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!isSupabaseConfigured) {
-    setAuthMessage("Add Supabase values to .env.local before using authentication.", true);
+    setAuthMessage("Sign-in is temporarily unavailable. Please try again later.", true);
     return;
   }
 
@@ -86,7 +90,7 @@ authForm.addEventListener("submit", async (event) => {
 
   authSubmit.disabled = false;
   if (result.error) {
-    setAuthMessage(result.error.message, true);
+    showAuthError();
     return;
   }
 
@@ -103,11 +107,11 @@ signOutButton.addEventListener("click", async () => {
   signOutButton.disabled = true;
   const { error } = await supabase.auth.signOut();
   signOutButton.disabled = false;
-  if (error) setAuthMessage(error.message, true);
+  if (error) showAuthError();
 });
 
 if (isSupabaseConfigured) {
-  signal.innerHTML = '<span class="signal-dot" style="background: var(--cyan)"></span>Supabase connected';
+  signal.innerHTML = '<span class="signal-dot" style="background: var(--cyan)"></span>Secure connection ready';
   copy.textContent = "Your identity is connected. Room Service is next.";
   supabase.auth.onAuthStateChange((_event, session) => {
     if (session) showApp();
@@ -117,5 +121,5 @@ if (isSupabaseConfigured) {
     if (session) showApp();
   });
 } else {
-  setAuthMessage("Authentication is waiting for Supabase configuration.");
+  setAuthMessage("Sign-in is temporarily unavailable. Please try again later.", true);
 }
