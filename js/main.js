@@ -55,7 +55,7 @@ authToggle.addEventListener("click", () => setAuthMode(!isSignInMode));
 
 googleButton.addEventListener("click", async () => {
   if (!isSupabaseConfigured) {
-    setAuthMessage("Sign-in is temporarily unavailable. Please try again later.", true);
+    setAuthMessage("Secure sign-in is unavailable right now. Please try again shortly.", true);
     return;
   }
   googleButton.disabled = true;
@@ -71,7 +71,7 @@ googleButton.addEventListener("click", async () => {
 authForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!isSupabaseConfigured) {
-    setAuthMessage("Sign-in is temporarily unavailable. Please try again later.", true);
+    setAuthMessage("Secure sign-in is unavailable right now. Please try again shortly.", true);
     return;
   }
 
@@ -121,5 +121,5 @@ if (isSupabaseConfigured) {
     if (session) showApp();
   });
 } else {
-  setAuthMessage("Sign-in is temporarily unavailable. Please try again later.", true);
+  setAuthMessage("");
 }
