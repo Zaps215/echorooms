@@ -16,6 +16,18 @@ const authSubmit = document.querySelector(".auth-submit");
 const signOutButton = document.querySelector("#sign-out-button");
 const deleteAccountButton = document.querySelector("#delete-account-button");
 const googleButton = document.querySelector("#google-button");
+const newRoomButton = document.querySelector("#new-room-button");
+const roomDialog = document.querySelector("#room-dialog");
+const roomForm = document.querySelector("#room-form");
+const roomName = document.querySelector("#room-name");
+const roomMessage = document.querySelector("#room-message");
+const dialogClose = document.querySelector("#dialog-close");
+const roomList = document.querySelector("#room-list");
+const roomCount = document.querySelector(".room-count");
+const roomTitle = document.querySelector("#room-title");
+const conversationEmpty = document.querySelector("#conversation-empty");
+
+let rooms = [];
 
 let isSignInMode = false;
 
@@ -26,6 +38,54 @@ function setAuthMessage(message, isError = false) {
 
 function showAuthError() {
   setAuthMessage("We couldn't complete that request. Check your details and try again.", true);
+}
+
+function showRoomError() {
+  roomMessage.textContent = "We couldn't save that room. Please try again.";
+  roomMessage.classList.add("is-error");
+}
+
+function escapeHtml(value) {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    "\"": "&quot;",
+  })[character]);
+}
+
+function renderRooms() {
+  roomCount.textContent = rooms.length;
+  if (!rooms.length) {
+    roomList.innerHTML = '<p class="empty-copy">Your rooms will appear here.</p>';
+    return;
+  }
+  roomList.innerHTML = rooms.map((room, index) => `<button class="room-item${index === 0 ? " is-active" : ""}" type="button" data-room-id="${room.id}"><span class="room-item-name">${escapeHtml(room.name)}</span><span class="room-item-type">${room.room_type === "direct" ? "Direct" : "Group"}</span></button>`).join("");
+  roomList.querySelectorAll(".room-item").forEach((button) => {
+    button.addEventListener("click", () => selectRoom(button.dataset.roomId));
+  });
+}
+
+function selectRoom(roomId) {
+  const room = rooms.find((item) => item.id === roomId);
+  if (!room) return;
+  roomTitle.textContent = room.name;
+  document.querySelectorAll(".room-item").forEach((item) => item.classList.toggle("is-active", item.dataset.roomId === roomId));
+  conversationEmpty.querySelector("h3").textContent = `Welcome to ${room.name}.`;
+  conversationEmpty.querySelector("p").textContent = "Your conversation will live here. Messaging is the next layer.";
+}
+
+async function loadRooms() {
+  if (!supabase) return;
+  const { data, error } = await supabase
+    .from("room_members")
+    .select("room_id, rooms(id, name, room_type, last_message_at, created_at)")
+    .order("joined_at", { ascending: false });
+  if (error) return;
+  rooms = data.map((membership) => membership.rooms).filter(Boolean);
+  renderRooms();
+  if (rooms[0]) selectRoom(rooms[0].id);
 }
 
 function setAuthMode(signIn) {
@@ -111,6 +171,44 @@ signOutButton.addEventListener("click", async () => {
   if (error) showAuthError();
 });
 
+newRoomButton.addEventListener("click", () => {
+  roomMessage.textContent = "";
+  roomMessage.classList.remove("is-error");
+  roomForm.reset();
+  roomDialog.showModal();
+  roomName.focus();
+});
+
+dialogClose.addEventListener("click", () => roomDialog.close());
+
+roomForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!supabase) return;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const name = roomName.value.trim();
+  roomMessage.textContent = "Creating room...";
+  roomMessage.classList.remove("is-error");
+  const { data: room, error: roomError } = await supabase
+    .from("rooms")
+    .insert({ name, room_type: "group", created_by: user.id })
+    .select("id, name, room_type, last_message_at, created_at")
+    .single();
+  if (roomError) {
+    showRoomError();
+    return;
+  }
+  const { error: membershipError } = await supabase.from("room_members").insert({ room_id: room.id, user_id: user.id, role: "owner" });
+  if (membershipError) {
+    showRoomError();
+    return;
+  }
+  rooms = [room, ...rooms];
+  renderRooms();
+  selectRoom(room.id);
+  roomDialog.close();
+});
+
 deleteAccountButton.addEventListener("click", async () => {
   if (!supabase || !window.confirm("Delete your EchoRooms account and all of its data? This cannot be undone.")) return;
   deleteAccountButton.disabled = true;
@@ -128,11 +226,20 @@ if (isSupabaseConfigured) {
   signal.innerHTML = '<span class="signal-dot" style="background: var(--cyan)"></span>Secure connection ready';
   copy.textContent = "Your identity is connected. Room Service is next.";
   supabase.auth.onAuthStateChange((_event, session) => {
-    if (session) showApp();
-    else showAuth();
+    if (session) {
+      showApp();
+      loadRooms();
+    } else {
+      rooms = [];
+      renderRooms();
+      showAuth();
+    }
   });
   supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session) showApp();
+    if (session) {
+      showApp();
+      loadRooms();
+    }
   });
 } else {
   setAuthMessage("");

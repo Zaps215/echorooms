@@ -53,19 +53,19 @@
             <h1 id="app-title">EchoRooms</h1>
           </div>
         </div>
-        <button class="new-room-button" type="button">+ New room</button>
+        <button class="new-room-button" id="new-room-button" type="button"><span>New room</span><span aria-hidden="true">+</span></button>
         <div class="sidebar-section-heading">
           <span>Rooms</span>
           <span class="room-count">0</span>
         </div>
-        <p class="empty-copy">Your rooms will appear here.</p>
+        <div class="room-list" id="room-list"><p class="empty-copy">Your rooms will appear here.</p></div>
       </aside>
 
       <section class="conversation-panel" aria-label="Conversation">
         <header class="conversation-header">
           <div>
-            <p class="eyebrow">Your first room</p>
-            <h2>Welcome to EchoRooms</h2>
+            <p class="eyebrow">Your workspace</p>
+            <h2 id="room-title">Welcome to EchoRooms</h2>
           </div>
           <div class="account-controls">
             <span class="status-pill">Foundation ready</span>
@@ -75,7 +75,7 @@
             </div>
           </div>
         </header>
-        <div class="conversation-empty">
+        <div class="conversation-empty" id="conversation-empty">
           <div class="empty-orbit" aria-hidden="true"><span></span></div>
           <h3>A quieter way to keep in touch.</h3>
           <p>Create a room to start a conversation that can become something useful.</p>
@@ -100,6 +100,16 @@
         </ul>
       </aside>
     </main>
+    <dialog class="room-dialog" id="room-dialog">
+      <form id="room-form" method="dialog">
+        <div class="dialog-heading"><div><p class="eyebrow">New space</p><h3>Create a room</h3></div><button class="dialog-close" id="dialog-close" type="button" aria-label="Close">&times;</button></div>
+        <p class="dialog-copy">Give your conversation a clear home. You can invite people after it is created.</p>
+        <label for="room-name">Room name</label>
+        <input id="room-name" name="roomName" type="text" maxlength="80" placeholder="e.g. Product launch" required />
+        <p class="form-message" id="room-message" role="status" aria-live="polite"></p>
+        <button class="auth-submit" type="submit"><span>Create room</span><span aria-hidden="true">&#8594;</span></button>
+      </form>
+    </dialog>
     <script type="module" src="./js/main.js"></script>
   </body>
 </html>
