@@ -34,13 +34,14 @@
           <label for="email">Email</label>
           <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required />
           <label for="password">Password</label>
-          <input id="password" name="password" type="password" autocomplete="current-password" placeholder="At least 6 characters" minlength="6" required />
+          <div class="password-field"><input id="password" name="password" type="password" autocomplete="current-password" placeholder="At least 6 characters" minlength="6" required /><button class="password-toggle" type="button" data-password-target="password" aria-label="Show password">Show</button></div>
           <button class="auth-submit" type="submit"><span>Create account</span><span aria-hidden="true">&#8594;</span></button>
           <p class="form-message" id="auth-message" role="status" aria-live="polite"></p>
         </form>
         <div class="auth-divider"><span>or continue with</span></div>
         <button class="google-button" id="google-button" type="button"><span class="google-mark" aria-hidden="true">G</span><span>Continue with Google</span></button>
         <button class="auth-toggle" id="auth-toggle" type="button">Already have an account? Sign in</button>
+        <button class="auth-reset" id="auth-reset" type="button">Forgot your password?</button>
       </section>
     </main>
 
@@ -70,6 +71,7 @@
           <div class="account-controls">
             <span class="status-pill">Foundation ready</span>
             <div class="account-actions">
+              <button class="profile-button" id="profile-button" type="button">Profile</button>
               <button class="sign-out-button" id="sign-out-button" type="button">Sign out</button>
               <button class="delete-account-button" id="delete-account-button" type="button">Delete account</button>
             </div>
@@ -100,6 +102,32 @@
         </ul>
       </aside>
     </main>
+    <dialog class="profile-dialog" id="profile-dialog">
+      <form id="profile-form">
+        <div class="dialog-heading"><div><p class="eyebrow">Your identity</p><h3>Edit profile</h3></div><button class="dialog-close" id="profile-dialog-close" type="button" aria-label="Close">&times;</button></div>
+        <label for="profile-display-name">Display name</label>
+        <input id="profile-display-name" name="displayName" type="text" maxlength="80" required />
+        <label for="profile-username">Username</label>
+        <input id="profile-username" name="username" type="text" maxlength="40" pattern="[A-Za-z0-9_]+" placeholder="optional" />
+        <label for="profile-status">Status</label>
+        <input id="profile-status" name="statusText" type="text" maxlength="120" placeholder="What are you working on?" />
+        <label for="profile-avatar">Avatar</label>
+        <input id="profile-avatar" name="avatar" type="file" accept="image/png,image/jpeg,image/webp" />
+        <p class="form-message" id="profile-message" role="status" aria-live="polite"></p>
+        <button class="auth-submit" type="submit"><span>Save profile</span><span aria-hidden="true">&#8594;</span></button>
+      </form>
+    </dialog>
+    <dialog class="profile-dialog" id="recovery-dialog">
+      <form id="recovery-form">
+        <div class="dialog-heading"><div><p class="eyebrow">Account recovery</p><h3>Choose a new password</h3></div></div>
+        <label for="new-password">New password</label>
+        <div class="password-field"><input id="new-password" name="newPassword" type="password" minlength="6" autocomplete="new-password" required /><button class="password-toggle" type="button" data-password-target="new-password" aria-label="Show new password">Show</button></div>
+        <label for="confirm-password">Confirm password</label>
+        <div class="password-field"><input id="confirm-password" name="confirmPassword" type="password" minlength="6" autocomplete="new-password" required /><button class="password-toggle" type="button" data-password-target="confirm-password" aria-label="Show confirmed password">Show</button></div>
+        <p class="form-message" id="recovery-message" role="status" aria-live="polite"></p>
+        <button class="auth-submit" type="submit"><span>Update password</span><span aria-hidden="true">&#8594;</span></button>
+      </form>
+    </dialog>
     <dialog class="room-dialog" id="room-dialog">
       <form id="room-form" method="dialog">
         <div class="dialog-heading"><div><p class="eyebrow">New space</p><h3>Create a room</h3></div><button class="dialog-close" id="dialog-close" type="button" aria-label="Close">&times;</button></div>

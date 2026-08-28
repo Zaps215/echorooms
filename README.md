@@ -34,7 +34,19 @@ Start the local frontend:
 npm run dev
 ```
 
-Open the URL printed by Vite. The initial screen is the Shared Foundation slice. Identity Service is the next implementation slice.
+Open the URL printed by Vite. The Shared Foundation and Identity Service slices are implemented. Room creation and room listing are also available; invitations and membership management are next.
+
+## Current Checkpoint
+
+- [x] Email/password sign-up and sign-in
+- [x] Google sign-in and secure sign-out
+- [x] Automatic profile creation
+- [x] Password reset email and new-password recovery flow
+- [x] Profile editing with username and status
+- [x] Private avatar uploads with authenticated storage policies
+- [x] Session changes return unauthenticated users to the login view
+- [x] Secure room creation and room listing
+- [ ] Room invitations, acceptance, and member role management
 
 ## Commands
 
