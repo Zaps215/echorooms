@@ -15,6 +15,7 @@ const displayName = document.querySelector("#display-name");
 const displayNameLabel = document.querySelector("#display-name-label");
 const passwordLabel = document.querySelector('label[for="password"]');
 const passwordInput = document.querySelector("#password");
+const passwordField = passwordInput.closest(".password-field");
 const authSubmit = document.querySelector(".auth-submit");
 const signOutButton = document.querySelector("#sign-out-button");
 const deleteAccountButton = document.querySelector("#delete-account-button");
@@ -130,7 +131,9 @@ function setAuthMode(signIn) {
   displayName.required = !signIn;
   displayName.hidden = signIn;
   displayNameLabel.hidden = signIn;
+  authReset.hidden = false;
   passwordLabel.hidden = false;
+  passwordField.hidden = false;
   passwordInput.hidden = false;
   passwordInput.required = true;
   authSubmit.textContent = signIn ? "Sign in" : "Create account";
@@ -146,8 +149,10 @@ function setResetMode() {
   authModeLabel.textContent = "Account recovery";
   authHeading.textContent = "Find your way back.";
   displayName.hidden = true;
+  displayName.required = false;
   displayNameLabel.hidden = true;
   passwordLabel.hidden = true;
+  passwordField.hidden = true;
   passwordInput.hidden = true;
   passwordInput.required = false;
   authSubmit.textContent = "Send reset link";
@@ -205,15 +210,22 @@ authForm.addEventListener("submit", async (event) => {
   const formData = new FormData(authForm);
   const email = formData.get("email");
   const password = formData.get("password");
-  const result = isResetMode
-    ? await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
-    : isSignInMode
-    ? await supabase.auth.signInWithPassword({ email, password })
-    : await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { display_name: formData.get("displayName") } },
-      });
+  let result;
+  try {
+    result = isResetMode
+      ? await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
+      : isSignInMode
+      ? await supabase.auth.signInWithPassword({ email, password })
+      : await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { display_name: formData.get("displayName") } },
+        });
+  } catch (error) {
+    authSubmit.disabled = false;
+    showAuthError(error);
+    return;
+  }
 
   authSubmit.disabled = false;
   if (result.error) {
