@@ -189,17 +189,13 @@ roomForm.addEventListener("submit", async (event) => {
   const name = roomName.value.trim();
   roomMessage.textContent = "Creating room...";
   roomMessage.classList.remove("is-error");
-  const { data: room, error: roomError } = await supabase
-    .from("rooms")
-    .insert({ name, room_type: "group", created_by: user.id })
-    .select("id, name, room_type, last_message_at, created_at")
-    .single();
+  const { data, error: roomError } = await supabase.rpc("create_room", { room_name: name });
+  const room = data?.[0];
   if (roomError) {
     showRoomError();
     return;
   }
-  const { error: membershipError } = await supabase.from("room_members").insert({ room_id: room.id, user_id: user.id, role: "owner" });
-  if (membershipError) {
+  if (!room) {
     showRoomError();
     return;
   }
