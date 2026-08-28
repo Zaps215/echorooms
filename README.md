@@ -65,3 +65,5 @@ Open the URL printed by Vite. The Shared Foundation and Identity Service slices 
 - `ECHOROOMS_PROGRAM.md` is the complete product specification.
 
 Never commit `.env.local` or service-role keys.
+
+The site favicon is the Flaticon speech-bubble icon served from the official Flaticon CDN. Flaticon attribution: https://www.flaticon.com/free-icons/chat
