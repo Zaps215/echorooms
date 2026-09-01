@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EchoRooms — Sign in</title>
+  <meta name="description" content="EchoRooms — where conversations become knowledge. Sign in to continue." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="auth.css" />
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"></div>
+
+  <main class="shell">
+    <div class="brand">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h9"/><circle cx="19" cy="17" r="2.4"/></svg>
+      </span>
+      <span class="brand-word">EchoRooms</span>
+    </div>
+
+    <section class="card">
+
+      <!-- ============ SIGN IN ============ -->
+      <form class="auth-form active" data-view="signin" novalidate>
+        <div class="view-head">
+          <h1>Welcome back</h1>
+          <p>Sign in to continue to your rooms</p>
+        </div>
+
+        <div class="field">
+          <label for="in-email">Email</label>
+          <input id="in-email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required />
+        </div>
+
+        <div class="field">
+          <label for="in-password">Password</label>
+          <div class="input-wrap">
+            <input id="in-password" type="password" name="password" placeholder="Enter your password" autocomplete="current-password" required />
+            <button type="button" class="reveal" data-reveal data-target="in-password" aria-label="Show password">
+              <svg class="eye" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="eye-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="error-box" role="alert" hidden></div>
+
+        <button type="submit" class="btn-primary">
+          <span class="btn-label">Sign in</span>
+          <span class="spinner" hidden></span>
+        </button>
+
+        <button type="button" class="link-forgot" data-goto="forgot">Forgot password?</button>
+
+        <div class="or-divider"><span>or continue with</span></div>
+
+        <button type="button" class="btn-social">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path fill="#4285F4" d="M23.5 12.27c0-.85-.08-1.66-.22-2.45H12v4.64h6.45a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.82z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.94-2.91l-3.88-3c-1.08.72-2.45 1.15-4.06 1.15-3.13 0-5.78-2.11-6.73-4.95H1.29v3.1A12 12 0 0 0 12 24z"/>
+            <path fill="#FBBC05" d="M5.27 14.29A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.29v-3.1H1.29a12 12 0 0 0 0 10.78l3.98-3.1z"/>
+            <path fill="#EA4335" d="M12 4.76c1.77 0 3.35.61 4.6 1.8l3.44-3.44A11.97 11.97 0 0 0 12 0 12 12 0 0 0 1.29 6.61l3.98 3.1C6.22 6.87 8.87 4.76 12 4.76z"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <p class="switch-text">New to EchoRooms? <button type="button" class="link-inline" data-goto="register">Create an account</button></p>
+      </form>
+
+      <!-- ============ SIGN UP ============ -->
+      <form class="auth-form" data-view="register" novalidate>
+        <div class="view-head">
+          <h1>Create your account</h1>
+          <p>Start turning conversations into knowledge</p>
+        </div>
+
+        <div class="field">
+          <label for="reg-name">Full name</label>
+          <input id="reg-name" type="text" name="name" placeholder="Jane Appleseed" autocomplete="name" required />
+        </div>
+
+        <div class="field">
+          <label for="reg-email">Email</label>
+          <input id="reg-email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required />
+        </div>
+
+        <div class="field">
+          <label for="reg-password">Password</label>
+          <div class="input-wrap">
+            <input id="reg-password" type="password" name="password" placeholder="8+ characters" autocomplete="new-password" required />
+            <button type="button" class="reveal" data-reveal data-target="reg-password" aria-label="Show password">
+              <svg class="eye" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="eye-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+          <div class="strength" aria-hidden="true">
+            <div class="strength-bars"></div>
+            <span class="strength-label"></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="reg-confirm">Confirm password</label>
+          <div class="input-wrap">
+            <input id="reg-confirm" type="password" name="confirm_password" placeholder="Re-enter your password" autocomplete="new-password" required />
+            <button type="button" class="reveal" data-reveal data-target="reg-confirm" aria-label="Show password">
+              <svg class="eye" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="eye-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" name="terms" required />
+          <span>I agree to the <a href="#">Terms</a> and <a href="#">Privacy Policy</a></span>
+        </label>
+
+        <div class="error-box" role="alert" hidden></div>
+
+        <button type="submit" class="btn-primary">
+          <span class="btn-label">Create account</span>
+          <span class="spinner" hidden></span>
+        </button>
+
+        <p class="switch-text">Already have an account? <button type="button" class="link-inline" data-goto="signin">Sign in</button></p>
+      </form>
+
+      <!-- ============ FORGOT PASSWORD ============ -->
+      <form class="auth-form" data-view="forgot" novalidate>
+        <div class="view-head">
+          <h1>Reset your password</h1>
+          <p>Enter your email and we'll send you a reset link</p>
+        </div>
+
+        <div class="field">
+          <label for="forgot-email">Email</label>
+          <input id="forgot-email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required />
+        </div>
+
+        <div class="error-box" role="alert" hidden></div>
+
+        <button type="submit" class="btn-primary">
+          <span class="btn-label">Send reset link</span>
+          <span class="spinner" hidden></span>
+        </button>
+
+        <button type="button" class="btn-ghost" data-goto="signin">← Back to sign in</button>
+      </form>
+
+      <!-- ============ SENT ============ -->
+      <div class="auth-form" data-view="sent">
+        <div class="view-head">
+          <div class="success-mark">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+          </div>
+          <h1>Check your inbox</h1>
+          <p>If an account exists for <strong class="sent-email"></strong>, a password reset link is on its way.</p>
+        </div>
+        <button type="button" class="btn-ghost" data-goto="signin">← Back to sign in</button>
+      </div>
+
+    </section>
+
+    <p class="footnote">Concept preview — frontend only, nothing is stored.</p>
+  </main>
+
+  <script src="auth.js"></script>
+</body>
+</html>

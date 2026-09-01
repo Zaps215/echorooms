@@ -1,420 +1,679 @@
 import "../css/styles.css";
 import { isSupabaseConfigured, supabase } from "./supabase-client.js";
 
-const signal = document.querySelector(".signal-line");
-const copy = document.querySelector(".panel-copy");
-const authShell = document.querySelector("#auth-shell");
-const appShell = document.querySelector("#app-shell");
-const authForm = document.querySelector("#auth-form");
-const authMessage = document.querySelector("#auth-message");
-const authToggle = document.querySelector("#auth-toggle");
-const authReset = document.querySelector("#auth-reset");
-const authModeLabel = document.querySelector("#auth-mode-label");
-const authHeading = document.querySelector("#auth-heading");
-const displayName = document.querySelector("#display-name");
-const displayNameLabel = document.querySelector("#display-name-label");
-const passwordLabel = document.querySelector('label[for="password"]');
-const passwordInput = document.querySelector("#password");
-const passwordField = passwordInput.closest(".password-field");
-const authSubmit = document.querySelector(".auth-submit");
-const signOutButton = document.querySelector("#sign-out-button");
-const deleteAccountButton = document.querySelector("#delete-account-button");
-const googleButton = document.querySelector("#google-button");
-const newRoomButton = document.querySelector("#new-room-button");
+// Auth wrapper
+const authWrapper = document.querySelector("#auth-wrapper");
+const appWrapper = document.querySelector("#app-wrapper");
+
+// Auth forms
+const authFormSignin = document.querySelector("#auth-form-signin");
+const authFormSignup = document.querySelector("#auth-form-signup");
+const authFormForgot = document.querySelector("#auth-form-forgot");
+const authFormRecovery = document.querySelector("#auth-form-recovery");
+
+// Auth form elements
+const signinEmail = document.querySelector("#signin-email");
+const signinPassword = document.querySelector("#signin-password");
+const signupName = document.querySelector("#signup-name");
+const signupEmail = document.querySelector("#signup-email");
+const signupPassword = document.querySelector("#signup-password");
+const signupConfirm = document.querySelector("#signup-confirm");
+const forgotEmail = document.querySelector("#forgot-email");
+const recoveryPassword = document.querySelector("#recovery-password");
+const recoveryConfirm = document.querySelector("#recovery-confirm");
+
+// Error messages
+const signinError = document.querySelector("#signin-error");
+const signupError = document.querySelector("#signup-error");
+const forgotError = document.querySelector("#forgot-error");
+const recoveryError = document.querySelector("#recovery-error");
+
+// Auth buttons
+const btnToSignup = document.querySelector("#btn-to-signup");
+const btnToSignin = document.querySelector("#btn-to-signin");
+const btnForgot = document.querySelector("#btn-forgot");
+const btnBackSignin = document.querySelector("#btn-back-signin");
+const btnGoogleSignin = document.querySelector("#btn-google-signin");
+
+// App shell elements
+const railRooms = document.querySelector("#rail-rooms");
+const railProfile = document.querySelector("#rail-profile");
+const roomList = document.querySelector("#room-list");
+const roomSearch = document.querySelector("#room-search");
+const meAvatar = document.querySelector("#me-avatar");
+const meName = document.querySelector("#me-name");
+const btnNewRoom = document.querySelector("#btn-new-room");
+const btnLogout = document.querySelector("#btn-logout");
+
+// Chat elements
+const chatEmpty = document.querySelector("#chat-empty");
+const chatActive = document.querySelector("#chat-active");
+const chatTitle = document.querySelector("#chat-title");
+const chatSubtitle = document.querySelector("#chat-subtitle");
+const composerInput = document.querySelector("#composer-input");
+const btnSend = document.querySelector("#btn-send");
+const btnInfo = document.querySelector("#btn-info");
+const btnBack = document.querySelector("#btn-back");
+
+// Info panel
+const info = document.querySelector("#info");
+const btnCloseInfo = document.querySelector("#btn-close-info");
+const infoHeadSub = document.querySelector("#info-head-sub");
+const memberList = document.querySelector("#member-list");
+const memberCount = document.querySelector("#member-count");
+const btnInvite = document.querySelector("#btn-invite");
+const btnEditProfile = document.querySelector("#btn-edit-profile");
+const btnDeleteAccount = document.querySelector("#btn-delete-account");
+
+// Dialogs
 const roomDialog = document.querySelector("#room-dialog");
 const roomForm = document.querySelector("#room-form");
 const roomName = document.querySelector("#room-name");
-const roomMessage = document.querySelector("#room-message");
-const dialogClose = document.querySelector("#dialog-close");
-const roomList = document.querySelector("#room-list");
-const roomCount = document.querySelector(".room-count");
-const roomTitle = document.querySelector("#room-title");
-const conversationEmpty = document.querySelector("#conversation-empty");
-const profileButton = document.querySelector("#profile-button");
+const roomError = document.querySelector("#room-error");
+const roomDialogClose = document.querySelector("#room-dialog-close");
+const roomCancel = document.querySelector("#room-cancel");
+
 const profileDialog = document.querySelector("#profile-dialog");
 const profileForm = document.querySelector("#profile-form");
-const profileDisplayName = document.querySelector("#profile-display-name");
+const profileName = document.querySelector("#profile-name");
 const profileUsername = document.querySelector("#profile-username");
 const profileStatus = document.querySelector("#profile-status");
 const profileAvatar = document.querySelector("#profile-avatar");
-const profileMessage = document.querySelector("#profile-message");
+const profileError = document.querySelector("#profile-error");
 const profileDialogClose = document.querySelector("#profile-dialog-close");
-const recoveryDialog = document.querySelector("#recovery-dialog");
-const recoveryForm = document.querySelector("#recovery-form");
-const recoveryMessage = document.querySelector("#recovery-message");
-const passwordToggles = document.querySelectorAll(".password-toggle");
+const profileCancel = document.querySelector("#profile-cancel");
 
+// State
 let rooms = [];
+let currentRoomId = null;
+let currentUser = null;
 
-let isSignInMode = false;
-let isResetMode = false;
+// ============ Helper Functions ============
 
-function setAuthMessage(message, isError = false) {
-  authMessage.textContent = message;
-  authMessage.classList.toggle("is-error", isError);
+function showError(errorEl, message) {
+  errorEl.textContent = message;
+  errorEl.hidden = false;
+}
+
+function hideError(errorEl) {
+  errorEl.hidden = true;
+  errorEl.textContent = "";
 }
 
 function showAuthError(error) {
-  const errorMessage = error?.message?.toLowerCase() || "";
-  if (errorMessage.includes("invalid login credentials")) {
-    setAuthMessage("That email or password is incorrect.", true);
-    return;
+  const msg = error?.message?.toLowerCase() || "";
+  if (msg.includes("invalid login credentials")) {
+    return "That email or password is incorrect.";
   }
-  if (errorMessage.includes("email not confirmed")) {
-    setAuthMessage("Confirm your email address before signing in.", true);
-    return;
+  if (msg.includes("email not confirmed")) {
+    return "Confirm your email address before signing in.";
   }
-  if (errorMessage.includes("user already registered")) {
-    setAuthMessage("An account already exists for that email. Try signing in.", true);
-    return;
+  if (msg.includes("user already registered")) {
+    return "An account already exists for that email. Try signing in.";
   }
-  if (errorMessage.includes("error sending confirmation email")) {
-    setAuthMessage("Supabase could not send the confirmation email. Configure an email provider in Supabase, then try again.", true);
-    return;
+  if (msg.includes("error sending confirmation email")) {
+    return "Supabase could not send the confirmation email. Configure an email provider in Supabase.";
   }
-  setAuthMessage("We couldn't complete that request. Check your details and try again.", true);
-}
-
-function showRoomError() {
-  roomMessage.textContent = "We couldn't save that room. Please try again.";
-  roomMessage.classList.add("is-error");
+  return "We couldn't complete that request. Check your details and try again.";
 }
 
 function escapeHtml(value) {
-  return value.replace(/[&<>'"]/g, (character) => ({
+  return value.replace(/[&<>'"]/g, (c) => ({
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     "'": "&#39;",
     "\"": "&quot;",
-  })[character]);
+  })[c]);
 }
 
-function renderRooms() {
-  roomCount.textContent = rooms.length;
-  if (!rooms.length) {
-    roomList.innerHTML = '<p class="empty-copy">Your rooms will appear here.</p>';
+function switchAuthForm(view) {
+  document.querySelectorAll(".auth-form").forEach((f) => f.classList.remove("active"));
+  const form = document.querySelector(`[data-view="${view}"]`);
+  if (form) form.classList.add("active");
+}
+
+function showAppShell() {
+  authWrapper.classList.add("is-hidden");
+  appWrapper.classList.remove("is-hidden");
+}
+
+function showAuthShell() {
+  appWrapper.classList.add("is-hidden");
+  authWrapper.classList.remove("is-hidden");
+  switchAuthForm("signin");
+}
+
+function setUserAvatar(name, element) {
+  if (!name) return;
+  element.textContent = name.charAt(0).toUpperCase();
+  const colors = [
+    "linear-gradient(135deg, var(--amber), var(--sun))",
+    "linear-gradient(135deg, var(--accent), var(--accent-strong))",
+    "linear-gradient(135deg, var(--amethyst), #bb7bff)",
+  ];
+  const hash = name.charCodeAt(0) % colors.length;
+  element.style.background = colors[hash];
+}
+
+// ============ Password Toggle ============
+
+document.querySelectorAll("[data-reveal]").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    const targetId = btn.getAttribute("data-target");
+    const input = document.querySelector(`#${targetId}`);
+    if (!input) return;
+    const isPassword = input.type === "password";
+    input.type = isPassword ? "text" : "password";
+    btn.classList.toggle("showing", isPassword);
+  });
+});
+
+// ============ Auth Form Submission ============
+
+authFormSignin.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!isSupabaseConfigured) {
+    showError(signinError, "Secure sign-in is unavailable right now.");
     return;
   }
-  roomList.innerHTML = rooms.map((room, index) => `<button class="room-item${index === 0 ? " is-active" : ""}" type="button" data-room-id="${room.id}"><span class="room-item-name">${escapeHtml(room.name)}</span><span class="room-item-type">${room.room_type === "direct" ? "Direct" : "Group"}</span></button>`).join("");
-  roomList.querySelectorAll(".room-item").forEach((button) => {
-    button.addEventListener("click", () => selectRoom(button.dataset.roomId));
+
+  const submitBtn = authFormSignin.querySelector(".btn-primary");
+  submitBtn.disabled = true;
+  hideError(signinError);
+
+  try {
+    const result = await supabase.auth.signInWithPassword({
+      email: signinEmail.value.trim(),
+      password: signinPassword.value,
+    });
+
+    if (result.error) {
+      showError(signinError, showAuthError(result.error));
+      submitBtn.disabled = false;
+      return;
+    }
+
+    authFormSignin.reset();
+    showAppShell();
+  } catch (error) {
+    showError(signinError, showAuthError(error));
+    submitBtn.disabled = false;
+  }
+});
+
+authFormSignup.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!isSupabaseConfigured) {
+    showError(signupError, "Secure sign-up is unavailable right now.");
+    return;
+  }
+
+  if (signupPassword.value !== signupConfirm.value) {
+    showError(signupError, "Passwords do not match.");
+    return;
+  }
+
+  const submitBtn = authFormSignup.querySelector(".btn-primary");
+  submitBtn.disabled = true;
+  hideError(signupError);
+
+  try {
+    const result = await supabase.auth.signUp({
+      email: signupEmail.value.trim(),
+      password: signupPassword.value,
+      options: {
+        data: { display_name: signupName.value.trim() },
+      },
+    });
+
+    if (result.error) {
+      showError(signupError, showAuthError(result.error));
+      submitBtn.disabled = false;
+      return;
+    }
+
+    if (result.data.session) {
+      authFormSignup.reset();
+      showAppShell();
+    } else {
+      showError(signupError, "Check your email to confirm your account.");
+      authFormSignup.reset();
+      switchAuthForm("signin");
+    }
+  } catch (error) {
+    showError(signupError, showAuthError(error));
+    submitBtn.disabled = false;
+  }
+});
+
+authFormForgot.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!isSupabaseConfigured) {
+    showError(forgotError, "Password reset is unavailable right now.");
+    return;
+  }
+
+  const submitBtn = authFormForgot.querySelector(".btn-primary");
+  submitBtn.disabled = true;
+  hideError(forgotError);
+
+  try {
+    const result = await supabase.auth.resetPasswordForEmail(forgotEmail.value.trim(), {
+      redirectTo: window.location.origin,
+    });
+
+    if (result.error) {
+      showError(forgotError, showAuthError(result.error));
+      submitBtn.disabled = false;
+      return;
+    }
+
+    showError(forgotError, "Check your email for a password reset link.");
+    authFormForgot.reset();
+    submitBtn.disabled = false;
+  } catch (error) {
+    showError(forgotError, showAuthError(error));
+    submitBtn.disabled = false;
+  }
+});
+
+authFormRecovery.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!isSupabaseConfigured) {
+    showError(recoveryError, "Password update is unavailable right now.");
+    return;
+  }
+
+  if (recoveryPassword.value !== recoveryConfirm.value) {
+    showError(recoveryError, "Passwords do not match.");
+    return;
+  }
+
+  const submitBtn = authFormRecovery.querySelector(".btn-primary");
+  submitBtn.disabled = true;
+  hideError(recoveryError);
+
+  try {
+    const result = await supabase.auth.updateUser({ password: recoveryPassword.value });
+
+    if (result.error) {
+      showError(recoveryError, "Could not update password. Please request a new reset link.");
+      submitBtn.disabled = false;
+      return;
+    }
+
+    authFormRecovery.reset();
+    showAppShell();
+  } catch (error) {
+    showError(recoveryError, "Could not update password.");
+    submitBtn.disabled = false;
+  }
+});
+
+// ============ Auth Navigation ============
+
+btnToSignup.addEventListener("click", (e) => {
+  e.preventDefault();
+  switchAuthForm("register");
+});
+
+btnToSignin.addEventListener("click", (e) => {
+  e.preventDefault();
+  switchAuthForm("signin");
+});
+
+btnForgot.addEventListener("click", (e) => {
+  e.preventDefault();
+  switchAuthForm("forgot");
+});
+
+btnBackSignin.addEventListener("click", (e) => {
+  e.preventDefault();
+  switchAuthForm("signin");
+});
+
+btnGoogleSignin.addEventListener("click", async (e) => {
+  e.preventDefault();
+  if (!isSupabaseConfigured) {
+    showError(signinError, "Google sign-in is unavailable right now.");
+    return;
+  }
+
+  const btn = e.target.closest("button");
+  btn.disabled = true;
+
+  try {
+    const result = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+
+    if (result.error) {
+      showError(signinError, "Google sign-in failed. Please try again.");
+      btn.disabled = false;
+    }
+  } catch (error) {
+    showError(signinError, "Google sign-in failed. Please try again.");
+    btn.disabled = false;
+  }
+});
+
+// ============ Room Management ============
+
+function renderRooms(filterText = "") {
+  const filtered = rooms.filter((r) => r.name.toLowerCase().includes(filterText.toLowerCase()));
+
+  if (!filtered.length) {
+    roomList.innerHTML = '<p style="padding: 16px; text-align: center; color: var(--muted); font-size: 13px;">No rooms found.</p>';
+    return;
+  }
+
+  roomList.innerHTML = filtered.map((room) => {
+    const avatarGradients = [
+      "linear-gradient(135deg, var(--amber), var(--sun))",
+      "linear-gradient(135deg, var(--accent), var(--accent-strong))",
+      "linear-gradient(135deg, var(--amethyst), #bb7bff)",
+    ];
+    const hash = room.name.charCodeAt(0) % avatarGradients.length;
+    const isActive = room.id === currentRoomId;
+
+    return `
+      <button class="room-item ${isActive ? "active" : ""}" data-room-id="${room.id}" type="button">
+        <div class="room-avatar" style="background: ${avatarGradients[hash]}">
+          ${room.name.charAt(0).toUpperCase()}
+        </div>
+        <div class="room-main">
+          <div class="room-top">
+            <span class="room-name">${escapeHtml(room.name)}</span>
+          </div>
+        </div>
+      </button>
+    `;
+  }).join("");
+
+  roomList.querySelectorAll(".room-item").forEach((btn) => {
+    btn.addEventListener("click", () => selectRoom(btn.dataset.roomId));
   });
 }
 
 function selectRoom(roomId) {
-  const room = rooms.find((item) => item.id === roomId);
+  currentRoomId = roomId;
+  const room = rooms.find((r) => r.id === roomId);
   if (!room) return;
-  roomTitle.textContent = room.name;
-  document.querySelectorAll(".room-item").forEach((item) => item.classList.toggle("is-active", item.dataset.roomId === roomId));
-  conversationEmpty.querySelector("h3").textContent = `Welcome to ${room.name}.`;
-  conversationEmpty.querySelector("p").textContent = "Your conversation will live here. Messaging is the next layer.";
+
+  chatTitle.textContent = room.name;
+  chatSubtitle.textContent = "Room open";
+  chatEmpty.classList.add("hidden");
+  chatActive.classList.remove("hidden");
+
+  renderRooms();
 }
 
 async function loadRooms() {
   if (!supabase) return;
   const { data, error } = await supabase
     .from("room_members")
-    .select("room_id, rooms(id, name, room_type, last_message_at, created_at)")
-    .order("joined_at", { ascending: false });
+    .select("rooms(id, name, room_type, created_at)")
+    .order("created_at", { ascending: false });
+
   if (error) return;
-  rooms = data.map((membership) => membership.rooms).filter(Boolean);
+
+  rooms = data.map((m) => m.rooms).filter(Boolean);
   renderRooms();
-  if (rooms[0]) selectRoom(rooms[0].id);
+
+  if (rooms.length > 0) {
+    selectRoom(rooms[0].id);
+  }
 }
 
-function setAuthMode(signIn) {
-  isSignInMode = signIn;
-  isResetMode = false;
-  authModeLabel.textContent = signIn ? "Welcome back" : "Start a room";
-  authHeading.textContent = signIn ? "Keep the useful parts." : "Make conversations useful.";
-  displayName.required = !signIn;
-  displayName.hidden = signIn;
-  displayNameLabel.hidden = signIn;
-  authReset.hidden = false;
-  passwordLabel.hidden = false;
-  passwordField.hidden = false;
-  passwordInput.hidden = false;
-  passwordInput.required = true;
-  authSubmit.textContent = signIn ? "Sign in" : "Create account";
-  authToggle.textContent = signIn
-    ? "New to EchoRooms? Create an account"
-    : "Already have an account? Sign in";
-  setAuthMessage("");
-}
-
-function setResetMode() {
-  isResetMode = true;
-  isSignInMode = false;
-  authModeLabel.textContent = "Account recovery";
-  authHeading.textContent = "Find your way back.";
-  displayName.hidden = true;
-  displayName.required = false;
-  displayNameLabel.hidden = true;
-  passwordLabel.hidden = true;
-  passwordField.hidden = true;
-  passwordInput.hidden = true;
-  passwordInput.required = false;
-  authSubmit.textContent = "Send reset link";
-  authToggle.textContent = "Back to sign in";
-  authReset.hidden = true;
-  setAuthMessage("");
-}
-
-function showApp() {
-  authShell.classList.add("is-hidden");
-  appShell.classList.remove("is-hidden");
-}
-
-function showAuth() {
-  appShell.classList.add("is-hidden");
-  authShell.classList.remove("is-hidden");
-}
-
-authToggle.addEventListener("click", () => setAuthMode(!isSignInMode));
-authReset.addEventListener("click", setResetMode);
-passwordToggles.forEach((toggle) => {
-  toggle.addEventListener("click", () => {
-    const input = document.querySelector(`#${toggle.dataset.passwordTarget}`);
-    const isVisible = input.type === "text";
-    input.type = isVisible ? "password" : "text";
-    toggle.textContent = isVisible ? "Show" : "Hide";
-    toggle.setAttribute("aria-label", `${isVisible ? "Show" : "Hide"} ${input.id.replaceAll("-", " ")}`);
-  });
-});
-
-googleButton.addEventListener("click", async () => {
-  if (!isSupabaseConfigured) {
-    setAuthMessage("Secure sign-in is unavailable right now. Please try again shortly.", true);
-    return;
-  }
-  googleButton.disabled = true;
-  setAuthMessage("Connecting to Google...");
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: window.location.origin },
-  });
-  googleButton.disabled = false;
-  if (error) showAuthError(error);
-});
-
-authForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!isSupabaseConfigured) {
-    setAuthMessage("Secure sign-in is unavailable right now. Please try again shortly.", true);
-    return;
-  }
-
-  authSubmit.disabled = true;
-  setAuthMessage("Connecting...");
-  const formData = new FormData(authForm);
-  const email = formData.get("email");
-  const password = formData.get("password");
-  let result;
-  try {
-    result = isResetMode
-      ? await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
-      : isSignInMode
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { display_name: formData.get("displayName") } },
-        });
-  } catch (error) {
-    authSubmit.disabled = false;
-    showAuthError(error);
-    return;
-  }
-
-  authSubmit.disabled = false;
-  if (result.error) {
-    showAuthError(result.error);
-    return;
-  }
-
-  if (isResetMode) {
-    authSubmit.disabled = false;
-    setAuthMessage("Check your email for a password reset link.");
-    authForm.reset();
-    return;
-  }
-
-  if (!isSignInMode && !result.data.session) {
-    setAuthMessage("Check your email to confirm your account, then sign in.");
-    return;
-  }
-  authForm.reset();
-  showApp();
-});
-
-signOutButton.addEventListener("click", async () => {
-  if (!supabase) return;
-  signOutButton.disabled = true;
-  const { error } = await supabase.auth.signOut();
-  signOutButton.disabled = false;
-  if (error) showAuthError(error);
-});
-
-newRoomButton.addEventListener("click", () => {
-  roomMessage.textContent = "";
-  roomMessage.classList.remove("is-error");
+btnNewRoom.addEventListener("click", () => {
+  hideError(roomError);
   roomForm.reset();
   roomDialog.showModal();
   roomName.focus();
 });
 
+roomDialogClose.addEventListener("click", () => roomDialog.close());
+roomCancel.addEventListener("click", () => roomDialog.close());
+
+roomForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!supabase) return;
+
+  const submitBtn = roomForm.querySelector(".btn-primary");
+  submitBtn.disabled = true;
+  hideError(roomError);
+
+  try {
+    const result = await supabase.rpc("create_room", {
+      room_name: roomName.value.trim(),
+    });
+
+    if (result.error) {
+      showError(roomError, "Could not create room. Please try again.");
+      submitBtn.disabled = false;
+      return;
+    }
+
+    if (!result.data || !result.data[0]) {
+      showError(roomError, "Could not create room. Please try again.");
+      submitBtn.disabled = false;
+      return;
+    }
+
+    rooms.unshift(result.data[0]);
+    renderRooms();
+    selectRoom(result.data[0].id);
+    roomDialog.close();
+    roomForm.reset();
+  } catch (error) {
+    showError(roomError, "Could not create room. Please try again.");
+    submitBtn.disabled = false;
+  }
+});
+
+// ============ Profile Management ============
+
 async function loadProfile() {
   if (!supabase) return;
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
-  const { data, error } = await supabase.from("profiles").select("display_name, username, status_text").eq("id", user.id).single();
-  if (error) return;
-  profileDisplayName.value = data.display_name || user.user_metadata?.display_name || "";
-  profileUsername.value = data.username || "";
-  profileStatus.value = data.status_text || "";
+
+  currentUser = user;
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("display_name, username, status_text")
+    .eq("id", user.id)
+    .single();
+
+  const displayName = data?.display_name || user.user_metadata?.display_name || "User";
+  meName.textContent = displayName;
+  setUserAvatar(displayName, meAvatar);
+  railProfile.textContent = displayName.charAt(0).toUpperCase();
+
+  if (data) {
+    profileName.value = data.display_name || "";
+    profileUsername.value = data.username || "";
+    profileStatus.value = data.status_text || "";
+  }
 }
 
-function setProfileMessage(message, isError = false) {
-  profileMessage.textContent = message;
-  profileMessage.classList.toggle("is-error", isError);
-}
-
-profileButton.addEventListener("click", async () => {
-  setProfileMessage("");
-  await loadProfile();
+btnEditProfile.addEventListener("click", async () => {
+  hideError(profileError);
+  if (currentUser) {
+    await loadProfile();
+  }
   profileDialog.showModal();
-  profileDisplayName.focus();
+  profileName.focus();
 });
 
 profileDialogClose.addEventListener("click", () => profileDialog.close());
+profileCancel.addEventListener("click", () => profileDialog.close());
 
-profileForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!supabase) return;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+profileForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!supabase || !currentUser) return;
+
   const avatar = profileAvatar.files[0];
   if (avatar && (!avatar.type.startsWith("image/") || avatar.size > 5 * 1024 * 1024)) {
-    setProfileMessage("Choose a PNG, JPEG, or WebP image smaller than 5 MB.", true);
+    showError(profileError, "Choose a PNG, JPEG, or WebP image smaller than 5 MB.");
     return;
   }
-  const saveButton = profileForm.querySelector("button[type=submit]");
-  saveButton.disabled = true;
-  setProfileMessage("Saving profile...");
-  let avatarPath;
-  if (avatar) {
-    const extension = avatar.name.split(".").pop().toLowerCase();
-    avatarPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
-    const { error } = await supabase.storage.from("avatars").upload(avatarPath, avatar, { contentType: avatar.type, upsert: false });
-    if (error) {
-      saveButton.disabled = false;
-      setProfileMessage("We couldn't upload that avatar.", true);
+
+  const submitBtn = profileForm.querySelector(".btn-primary");
+  submitBtn.disabled = true;
+  hideError(profileError);
+
+  try {
+    let avatarPath;
+    if (avatar) {
+      const ext = avatar.name.split(".").pop().toLowerCase();
+      avatarPath = `${currentUser.id}/${crypto.randomUUID()}.${ext}`;
+      const uploadResult = await supabase.storage
+        .from("avatars")
+        .upload(avatarPath, avatar, { contentType: avatar.type, upsert: false });
+
+      if (uploadResult.error) {
+        showError(profileError, "Could not upload avatar. Please try again.");
+        submitBtn.disabled = false;
+        return;
+      }
+    }
+
+    const updates = {
+      display_name: profileName.value.trim(),
+      username: profileUsername.value.trim() || null,
+      status_text: profileStatus.value.trim() || null,
+    };
+
+    if (avatarPath) updates.avatar_path = avatarPath;
+
+    const updateResult = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", currentUser.id);
+
+    if (updateResult.error) {
+      showError(profileError, "Could not save profile. Check that your username is available.");
+      submitBtn.disabled = false;
       return;
     }
+
+    await loadProfile();
+    profileDialog.close();
+    profileForm.reset();
+  } catch (error) {
+    showError(profileError, "Could not save profile. Please try again.");
+    submitBtn.disabled = false;
   }
-  const updates = {
-    display_name: profileDisplayName.value.trim(),
-    username: profileUsername.value.trim() || null,
-    status_text: profileStatus.value.trim() || null,
-  };
-  if (avatarPath) updates.avatar_path = avatarPath;
-  const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
-  saveButton.disabled = false;
-  if (error) {
-    setProfileMessage("We couldn't save your profile. Check that your username is available.", true);
-    return;
-  }
-  setProfileMessage("Profile saved.");
 });
 
-recoveryForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
+// ============ Info Panel ============
+
+btnInfo.addEventListener("click", () => {
+  info.classList.add("open");
+});
+
+btnCloseInfo.addEventListener("click", () => {
+  info.classList.remove("open");
+});
+
+btnDeleteAccount.addEventListener("click", async () => {
+  if (!supabase || !window.confirm("Delete your EchoRooms account and all data? This cannot be undone.")) return;
+
+  const btn = btnDeleteAccount;
+  btn.disabled = true;
+
+  try {
+    const result = await supabase.rpc("delete_my_account");
+    if (result.error) {
+      showError(profileError, "Could not delete account. Please try again.");
+      btn.disabled = false;
+      return;
+    }
+
+    await supabase.auth.signOut();
+    showAuthShell();
+  } catch (error) {
+    showError(profileError, "Could not delete account. Please try again.");
+    btn.disabled = false;
+  }
+});
+
+// ============ Chat Composer ============
+
+btnSend.addEventListener("click", () => {
+  // Placeholder for future messaging implementation
+  if (composerInput.value.trim()) {
+    composerInput.value = "";
+  }
+});
+
+composerInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    btnSend.click();
+  }
+});
+
+btnBack.addEventListener("click", () => {
+  // Mobile back button
+  chatActive.classList.add("hidden");
+  chatEmpty.classList.remove("hidden");
+  currentRoomId = null;
+});
+
+// ============ Auth State ============
+
+btnLogout.addEventListener("click", async () => {
   if (!supabase) return;
-  const formData = new FormData(recoveryForm);
-  const newPassword = formData.get("newPassword");
-  if (newPassword !== formData.get("confirmPassword")) {
-    recoveryMessage.textContent = "Passwords do not match.";
-    recoveryMessage.classList.add("is-error");
-    return;
+  btnLogout.disabled = true;
+  const result = await supabase.auth.signOut();
+  if (result.error) {
+    showAuthError(result.error);
   }
-  const submitButton = recoveryForm.querySelector("button[type=submit]");
-  submitButton.disabled = true;
-  recoveryMessage.textContent = "Updating password...";
-  recoveryMessage.classList.remove("is-error");
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
-  submitButton.disabled = false;
-  if (error) {
-    recoveryMessage.textContent = "We couldn't update your password. Please request a new link.";
-    recoveryMessage.classList.add("is-error");
-    return;
-  }
-  recoveryMessage.textContent = "Password updated. You can continue to your rooms.";
-  recoveryForm.reset();
-  window.setTimeout(() => recoveryDialog.close(), 900);
+  btnLogout.disabled = false;
 });
 
-dialogClose.addEventListener("click", () => roomDialog.close());
-
-roomForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!supabase) return;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-  const name = roomName.value.trim();
-  roomMessage.textContent = "Creating room...";
-  roomMessage.classList.remove("is-error");
-  const { data, error: roomError } = await supabase.rpc("create_room", { room_name: name });
-  const room = data?.[0];
-  if (roomError) {
-    showRoomError();
-    return;
-  }
-  if (!room) {
-    showRoomError();
-    return;
-  }
-  rooms = [room, ...rooms];
-  renderRooms();
-  selectRoom(room.id);
-  roomDialog.close();
-});
-
-deleteAccountButton.addEventListener("click", async () => {
-  if (!supabase || !window.confirm("Delete your EchoRooms account and all of its data? This cannot be undone.")) return;
-  deleteAccountButton.disabled = true;
-  const { error } = await supabase.rpc("delete_my_account");
-  if (error) {
-    deleteAccountButton.disabled = false;
-    showAuthError(error);
-    return;
-  }
-  await supabase.auth.signOut();
-  showAuth();
-});
+// ============ Setup ============
 
 if (isSupabaseConfigured) {
-  signal.innerHTML = '<span class="signal-dot" style="background: var(--cyan)"></span>Secure connection ready';
-  copy.textContent = "Your identity is connected. Room Service is next.";
   supabase.auth.onAuthStateChange((event, session) => {
     if (session) {
-      showApp();
+      currentUser = session.user;
+      showAppShell();
       loadRooms();
       loadProfile();
-      if (event === "PASSWORD_RECOVERY") recoveryDialog.showModal();
+
+      if (event === "PASSWORD_RECOVERY") {
+        switchAuthForm("recovery");
+      }
     } else {
+      currentUser = null;
       rooms = [];
-      renderRooms();
-      showAuth();
+      currentRoomId = null;
+      showAuthShell();
     }
   });
+
   supabase.auth.getSession().then(({ data: { session } }) => {
     if (session) {
-      showApp();
+      currentUser = session.user;
+      showAppShell();
       loadRooms();
       loadProfile();
+    } else {
+      showAuthShell();
     }
   });
 } else {
-  setAuthMessage("");
+  showAuthShell();
 }
+
+// Room search
+roomSearch.addEventListener("input", (e) => {
+  renderRooms(e.target.value);
+});
