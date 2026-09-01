@@ -33,21 +33,24 @@ Start the local frontend:
 npm run dev
 ```
 
-Open the URL printed by Vite. The Shared Foundation and Identity Service slices are implemented. Room creation and room listing are also available; invitations and membership management are next.
+Open the URL printed by Vite. The Shared Foundation and Identity Service slices are implemented, including OTP email verification. Room creation and room listing are also available; realtime messaging and invitations are next.
 
 ## Current Checkpoint
 
 - [x] Email/password sign-up and sign-in
 - [x] Google sign-in and sign-up (shared OAuth handler on both screens)
 - [x] Automatic profile creation
-- [x] Password reset email and new-password recovery flow
+- [x] Email OTP verification on sign-up (6-digit code in a Telegram-style box UI) to block fake accounts
+- [x] Password reset via email OTP (replaces the reset-link flow)
 - [x] Profile editing with username and status
 - [x] Private avatar uploads with authenticated storage policies
 - [x] Session changes return unauthenticated users to the login view
 - [x] Secure room creation and room listing
 - [x] Centered, single-card auth layout with the logo above the form
 - [x] Light theme (blue primary, amber highlights) applied across the app shell
+- [x] Telegram-style three-pane app homepage (sidebar with All/Groups tabs and round avatars, chat pane, and a room-info panel that lists members)
 - [x] Draft Terms &amp; Conditions and Privacy Policy pages linked from the signup form
+- [ ] Realtime messaging (the chat pane currently shows a welcome state)
 - [ ] Room invitations, acceptance, and member role management
 
 ## Commands

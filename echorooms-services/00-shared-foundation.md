@@ -22,10 +22,10 @@ None.
 - Single-page app: `index.html` holds the auth views and the application shell. There is no separate `login.html` / `app.html` / `settings.html`.
 - One client entry point (`js/main.js`) and one stylesheet (`css/styles.css`) with `:root` design tokens.
 - `js/supabase-client.js` initializes the Supabase client from `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-- Auth pages use a centered card layout: a single professional card on a soft gradient background with an aurora glow, and the EchoRooms logo centered above the form.
+- Auth pages use a centered single-card layout: a professional white card on a soft light gradient background with subtle shadows, with the EchoRooms logo centered above the form.
 - Define the light visual language: white/surface base, blue primary accent, warm amber highlights.
 - Create the `supabase/migrations/` and `supabase/functions/` folders.
-- Build a responsive shell with room rail, sidebar, conversation area, and information panel.
+- Build a responsive shell with a left sidebar (brand, search, All/Groups tabs, room list, and profile footer), a conversation area, and an information panel.
 
 ## Definition of Done
 

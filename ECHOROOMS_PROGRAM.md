@@ -115,6 +115,7 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 - Sign-up screen
 - Login screen
 - Password reset screen
+- Email OTP verification screen (6-digit code, Telegram-style boxes) used for both sign-up and password reset
 - Loading, validation-error, and session-expired states
 
 ### Main application shell
@@ -507,6 +508,7 @@ Definition of done:
 Definition of done:
 
 - A user can sign up, log in, log out, and reset a password.
+- Sign-up and password reset are protected by email OTP verification, blocking fake or unreachable accounts.
 - A profile row is created automatically.
 - Unauthenticated users cannot access the app shell.
 
