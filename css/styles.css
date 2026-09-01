@@ -641,6 +641,43 @@ input, textarea { font-family: inherit; }
 .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 .modal-actions .btn-ghost, .modal-actions .btn-primary { margin-top: 0; flex: 1; }
 
+/* ---------------- Home (first-run landing) ---------------- */
+.home {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column;
+  padding: 28px clamp(20px, 6vw, 64px);
+}
+.home-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding-bottom: 20px; border-bottom: 1px solid var(--line);
+}
+.home-brand { display: flex; align-items: center; gap: 12px; color: var(--ink); }
+.home-brand .logo-mark { width: 40px; height: 40px; border-radius: 12px; }
+.home-brand h1 { margin: 0; font-size: 20px; font-weight: 700; }
+.home-greeting { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+.home-body {
+  max-width: 520px; margin: 0 auto; padding: 40px 0;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.home-hero h2 { margin: 0 0 10px; color: var(--ink); font-size: 30px; font-weight: 700; }
+.home-hero p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.6; max-width: 420px; }
+
+.home-actions { margin-top: 28px; }
+.home-actions .btn-primary { width: auto; display: inline-flex; align-items: center; gap: 8px; padding: 0 24px; }
+
+.home-features {
+  margin-top: 44px; width: 100%; max-width: 460px;
+  display: flex; flex-direction: column; gap: 18px; text-align: left;
+}
+.home-feature { display: flex; align-items: center; gap: 14px; }
+.home-feature-icon {
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px;
+  display: grid; place-items: center; color: var(--accent); background: var(--accent-soft);
+}
+.home-feature strong { display: block; color: var(--ink); font-size: 14.5px; }
+.home-feature small { color: var(--muted); font-size: 13px; line-height: 1.4; }
+
 /* ============================================================
    Responsive
    ============================================================ */
@@ -668,6 +705,8 @@ input, textarea { font-family: inherit; }
   .sidebar.open { transform: translateX(0); }
   .mobile-back { display: grid; }
   .chat-empty, .chat-active { padding: 0; }
+  .home { padding: 20px 16px; }
+  .home-brand h1 { font-size: 18px; }
   .messages { padding: 16px 12px; }
   .bubble { max-width: 82%; }
   .side-me { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }

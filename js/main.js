@@ -8,7 +8,6 @@
 
 import "../css/styles.css";
 import { supabase, isSupabaseConfigured } from "./core/supabase.js";
-import * as dom from "./core/dom.js";
 import { state, resetAppState } from "./core/state.js";
 import { switchAuthForm, showAppShell, showAuthShell } from "./core/navigation.js";
 
@@ -17,6 +16,7 @@ import { initOtp } from "./features/otp.js";
 import { initRooms, loadRooms } from "./features/rooms.js";
 import { initProfile, loadProfile } from "./features/profile.js";
 import { initChat } from "./features/chat.js";
+import { initHome, enterHome } from "./features/home.js";
 
 // --- Feature wiring (listener setup only) ---
 initAuth();
@@ -24,13 +24,18 @@ initOtp();
 initRooms();
 initProfile();
 initChat();
+initHome();
 
 // --- Session lifecycle ---
-function enterApp(user) {
+async function enterApp(user) {
   state.currentUser = user;
   showAppShell();
-  loadRooms();
+  const roomCount = await loadRooms();
   loadProfile();
+  // Show the first-run homepage when the user has no rooms to open.
+  if (roomCount === 0) {
+    enterHome();
+  }
 }
 
 function exitToAuth() {

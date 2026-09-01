@@ -76,6 +76,12 @@ export const btnSend = query("btn-send");
 export const btnInfo = query("btn-info");
 export const btnBack = query("btn-back");
 
+export const homeView = query("home-view");
+export const homeGreeting = query("home-greeting");
+export const homeTitle = query("home-title");
+export const homeSubtitle = query("home-subtitle");
+export const btnHomeNewRoom = query("btn-home-new-room");
+
 export const info = query("info");
 export const btnCloseInfo = query("btn-close-info");
 export const infoHeadSub = query("info-head-sub");

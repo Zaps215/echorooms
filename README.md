@@ -49,6 +49,7 @@ Open the URL printed by Vite. The Shared Foundation and Identity Service slices 
 - [x] Centered, single-card auth layout with the logo above the form
 - [x] Light theme (blue primary, amber highlights) applied across the app shell
 - [x] Telegram-style three-pane app homepage (sidebar with All/Groups tabs and round avatars, chat pane, and a room-info panel that lists members)
+- [x] First-run homepage with a welcome greeting and "create your first room" call-to-action when a new user has no rooms
 - [x] Draft Terms &amp; Conditions and Privacy Policy pages linked from the signup form
 - [ ] Realtime messaging (the chat pane currently shows a welcome state)
 - [ ] Room invitations, acceptance, and member role management
@@ -66,7 +67,7 @@ Open the URL printed by Vite. The Shared Foundation and Identity Service slices 
 - `css/` contains the visual foundation.
 - `js/main.js` is the entry point: it wires the auth-session lifecycle and bootstraps each feature module.
 - `js/core/` holds shared concerns — the DOM registry (`dom.js`), app state (`state.js`), Supabase access (`supabase.js`), and reusable helpers (`utils.js`, `navigation.js`).
-- `js/features/` holds feature logic — auth (`auth.js`), email OTP verification (`otp.js`), rooms (`rooms.js`), profile/account (`profile.js`), and chat (`chat.js`).
+- `js/features/` holds feature logic — auth (`auth.js`), email OTP verification (`otp.js`), rooms (`rooms.js`), profile/account (`profile.js`), chat (`chat.js`), and the first-run homepage (`home.js`).
 - `js/supabase-client.js` initializes the Supabase client.
 - `supabase/migrations/` contains database migrations and RLS policies.
 - `supabase/functions/` is reserved for secure Edge Functions.

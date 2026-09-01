@@ -21,6 +21,20 @@ export function showAuthShell() {
   switchAuthForm("signin");
 }
 
+/** Shows the first-run homepage, hiding any room or empty chat state. */
+export function showHome() {
+  if (dom.homeView) dom.homeView.classList.remove("is-hidden");
+  if (dom.chatEmpty) dom.chatEmpty.classList.add("is-hidden");
+  if (dom.chatActive) dom.chatActive.classList.add("is-hidden");
+}
+
+/** Shows the active room chat, hiding the homepage. */
+export function showRoomChat() {
+  if (dom.homeView) dom.homeView.classList.add("is-hidden");
+  if (dom.chatEmpty) dom.chatEmpty.classList.add("is-hidden");
+  if (dom.chatActive) dom.chatActive.classList.remove("is-hidden");
+}
+
 export function initPasswordToggle() {
   dom.passwordToggles.forEach((btn) => {
     btn.addEventListener("click", (e) => {

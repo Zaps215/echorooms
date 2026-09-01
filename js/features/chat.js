@@ -5,6 +5,7 @@
 
 import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
+import { showHome } from "../core/navigation.js";
 
 function initComposer() {
   dom.btnSend?.addEventListener("click", () => {
@@ -23,9 +24,8 @@ function initComposer() {
 
 function initMobileBack() {
   dom.btnBack?.addEventListener("click", () => {
-    dom.chatActive.classList.add("hidden");
-    dom.chatEmpty.classList.remove("hidden");
     state.currentRoomId = null;
+    showHome();
   });
 }
 

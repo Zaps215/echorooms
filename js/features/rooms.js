@@ -8,6 +8,7 @@ import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
 import { showError, hideError, escapeHtml, avatarColor } from "../core/utils.js";
+import { showRoomChat } from "../core/navigation.js";
 
 const ROOM_PALETTE = [
   "#2563eb",
@@ -118,8 +119,7 @@ export function selectRoom(roomId) {
   dom.chatTitle.textContent = room.name;
   dom.chatSubtitle.textContent =
     room.room_type === "direct" ? "Direct conversation" : "Group room";
-  dom.chatEmpty.classList.add("hidden");
-  dom.chatActive.classList.remove("hidden");
+  showRoomChat();
 
   renderChatEmpty(room);
   renderRoomInfo(room);
@@ -127,13 +127,13 @@ export function selectRoom(roomId) {
 }
 
 export async function loadRooms() {
-  if (!supabase) return;
+  if (!supabase) return 0;
   const { data, error } = await supabase
     .from("room_members")
     .select("rooms(id, name, room_type, created_at)")
     .order("created_at", { ascending: false });
 
-  if (error) return;
+  if (error) return 0;
 
   state.rooms = data.map((m) => m.rooms).filter(Boolean);
   renderRooms();
@@ -141,14 +141,20 @@ export async function loadRooms() {
   if (state.rooms.length > 0) {
     selectRoom(state.rooms[0].id);
   }
+  return state.rooms.length;
+}
+
+export function openRoomDialog() {
+  hideError(dom.roomError);
+  dom.roomForm.reset();
+  dom.roomDialog.showModal();
+  dom.roomName.focus();
 }
 
 function initRoomDialog() {
-  dom.btnNewRoom?.addEventListener("click", () => {
-    hideError(dom.roomError);
-    dom.roomForm.reset();
-    dom.roomDialog.showModal();
-    dom.roomName.focus();
+  dom.btnNewRoom?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openRoomDialog();
   });
 
   dom.roomDialogClose?.addEventListener("click", () => dom.roomDialog.close());
