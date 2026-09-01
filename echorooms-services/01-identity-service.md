@@ -26,6 +26,7 @@ Manage authentication, profiles, sessions, and avatars.
 
 - Enable email/password authentication.
 - Add sign-up, login, logout, and password-reset screens.
+- Add a Google social sign-in button to **both** the sign-in and sign-up screens, routed through a shared OAuth handler.
 - Create a profile row when a user registers.
 - Protect the application shell from unauthenticated users.
 - Validate profile fields and avatar MIME type and size.
@@ -33,7 +34,7 @@ Manage authentication, profiles, sessions, and avatars.
 
 ## Definition of Done
 
-- A user can sign up, log in, log out, and reset a password.
+- A user can sign up, log in, log out, and reset a password (email + Google).
 - A profile is created automatically.
 - Profile updates and avatar uploads work.
 - Expired sessions redirect to login.

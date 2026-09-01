@@ -172,7 +172,7 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 
 EchoRooms should feel like a calm, intelligent workspace rather than a noisy social feed.
 
-- Use a dark charcoal base with warm coral and electric cyan accents.
+- Use a clean light base with a blue primary accent and warm amber highlights.
 - Use a distinctive display font for room names and headings, paired with a highly readable sans-serif for messages.
 - Keep message density comfortable and scanning-friendly.
 - Use color to distinguish message status, task status, presence, and system events.
@@ -641,7 +641,7 @@ AI_PROVIDER_API_KEY=
 INVITATION_EMAIL_PROVIDER_KEY=
 ```
 
-Do not commit `.env` files or private keys. Provide a `.env.example` file with empty values and setup instructions.
+Do not commit `.env` files or private keys. Keep your local `.env.local` values out of version control.
 
 ---
 

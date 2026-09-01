@@ -35,9 +35,18 @@ const btnForgot = document.querySelector("#btn-forgot");
 const btnBackSignin = document.querySelector("#btn-back-signin");
 const btnGoogleSignin = document.querySelector("#btn-google-signin");
 
+// OTP elements
+const authFormOtp = document.querySelector("#auth-form-otp");
+const otpEmail = document.querySelector("#otp-email");
+const otpTitle = document.querySelector("#otp-title");
+const otpBoxes = document.querySelector("#otp-boxes");
+const otpResendLabel = document.querySelector("#otp-resend-label");
+const otpCountdown = document.querySelector("#otp-countdown");
+const otpResend = document.querySelector("#otp-resend");
+const otpError = document.querySelector("#otp-error");
+const otpBack = document.querySelector("#otp-back");
+
 // App shell elements
-const railRooms = document.querySelector("#rail-rooms");
-const railProfile = document.querySelector("#rail-profile");
 const roomList = document.querySelector("#room-list");
 const roomSearch = document.querySelector("#room-search");
 const meAvatar = document.querySelector("#me-avatar");
@@ -51,6 +60,7 @@ const chatActive = document.querySelector("#chat-active");
 const chatTitle = document.querySelector("#chat-title");
 const chatSubtitle = document.querySelector("#chat-subtitle");
 const composerInput = document.querySelector("#composer-input");
+const messagesEl = document.querySelector("#messages");
 const btnSend = document.querySelector("#btn-send");
 const btnInfo = document.querySelector("#btn-info");
 const btnBack = document.querySelector("#btn-back");
@@ -86,7 +96,15 @@ const profileCancel = document.querySelector("#profile-cancel");
 // State
 let rooms = [];
 let currentRoomId = null;
+let activeTab = "all";
 let currentUser = null;
+
+// OTP state
+let otpPurpose = "signup"; // "signup" | "reset"
+let otpEmailValue = "";
+let otpPendingName = "";
+let otpPendingPassword = "";
+let otpCountdownTimer = null;
 
 // ============ Helper Functions ============
 
@@ -133,6 +151,32 @@ function switchAuthForm(view) {
   if (form) form.classList.add("active");
 }
 
+function updatePasswordStrength(input, strengthEl) {
+  if (!input || !strengthEl) return;
+
+  const score = (pw) => {
+    let s = 0;
+    if (pw.length >= 8) s++;
+    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
+    if (/\d/.test(pw)) s++;
+    if (/[^A-Za-z0-9]/.test(pw)) s++;
+    return s;
+  };
+
+  const labels = ["", "Too weak", "Weak", "Fair", "Strong"];
+  const bars = strengthEl.querySelector(".strength-bars");
+  const label = strengthEl.querySelector(".strength-label");
+
+  const s = score(input.value);
+  strengthEl.className = `strength s${s}`;
+  if (bars) {
+    bars.innerHTML = "<i></i><i></i><i></i><i></i>";
+  }
+  if (label) {
+    label.textContent = input.value ? labels[s] : "";
+  }
+}
+
 function showAppShell() {
   authWrapper.classList.add("is-hidden");
   appWrapper.classList.remove("is-hidden");
@@ -148,9 +192,10 @@ function setUserAvatar(name, element) {
   if (!name) return;
   element.textContent = name.charAt(0).toUpperCase();
   const colors = [
-    "linear-gradient(135deg, var(--amber), var(--sun))",
-    "linear-gradient(135deg, var(--accent), var(--accent-strong))",
-    "linear-gradient(135deg, var(--amethyst), #bb7bff)",
+    "linear-gradient(135deg, #2563eb, #4f46e5)",
+    "linear-gradient(135deg, #059669, #0d9488)",
+    "linear-gradient(135deg, #db2777, #9333ea)",
+    "linear-gradient(135deg, #ea580c, #f59e0b)",
   ];
   const hash = name.charCodeAt(0) % colors.length;
   element.style.background = colors[hash];
@@ -169,6 +214,11 @@ document.querySelectorAll("[data-reveal]").forEach((btn) => {
     btn.classList.toggle("showing", isPassword);
   });
 });
+
+if (signupPassword) {
+  const signupStrength = signupPassword.closest(".field")?.querySelector(".strength");
+  signupPassword.addEventListener("input", () => updatePasswordStrength(signupPassword, signupStrength));
+}
 
 // ============ Auth Form Submission ============
 
@@ -220,13 +270,8 @@ authFormSignup.addEventListener("submit", async (e) => {
   hideError(signupError);
 
   try {
-    const result = await supabase.auth.signUp({
-      email: signupEmail.value.trim(),
-      password: signupPassword.value,
-      options: {
-        data: { display_name: signupName.value.trim() },
-      },
-    });
+    const email = signupEmail.value.trim();
+    const result = await supabase.auth.signInWithOtp({ email });
 
     if (result.error) {
       showError(signupError, showAuthError(result.error));
@@ -234,14 +279,12 @@ authFormSignup.addEventListener("submit", async (e) => {
       return;
     }
 
-    if (result.data.session) {
-      authFormSignup.reset();
-      showAppShell();
-    } else {
-      showError(signupError, "Check your email to confirm your account.");
-      authFormSignup.reset();
-      switchAuthForm("signin");
-    }
+    otpPurpose = "signup";
+    otpEmailValue = email;
+    otpPendingName = signupName.value.trim();
+    otpPendingPassword = signupPassword.value;
+    otpTitle.textContent = "Verify your email";
+    startOtp("signup");
   } catch (error) {
     showError(signupError, showAuthError(error));
     submitBtn.disabled = false;
@@ -260,19 +303,26 @@ authFormForgot.addEventListener("submit", async (e) => {
   hideError(forgotError);
 
   try {
-    const result = await supabase.auth.resetPasswordForEmail(forgotEmail.value.trim(), {
-      redirectTo: window.location.origin,
+    const email = forgotEmail.value.trim();
+    const result = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
     });
 
     if (result.error) {
-      showError(forgotError, showAuthError(result.error));
+      if (result.error.message.toLowerCase().includes("not found") || result.error.code === "user_not_found") {
+        showError(forgotError, "No account exists for that email.");
+      } else {
+        showError(forgotError, showAuthError(result.error));
+      }
       submitBtn.disabled = false;
       return;
     }
 
-    showError(forgotError, "Check your email for a password reset link.");
-    authFormForgot.reset();
-    submitBtn.disabled = false;
+    otpPurpose = "reset";
+    otpEmailValue = email;
+    otpTitle.textContent = "Reset your password";
+    startOtp("reset");
   } catch (error) {
     showError(forgotError, showAuthError(error));
     submitBtn.disabled = false;
@@ -334,61 +384,221 @@ btnBackSignin.addEventListener("click", (e) => {
   switchAuthForm("signin");
 });
 
-btnGoogleSignin.addEventListener("click", async (e) => {
+otpBack.addEventListener("click", (e) => {
   e.preventDefault();
-  if (!isSupabaseConfigured) {
-    showError(signinError, "Google sign-in is unavailable right now.");
-    return;
+  clearInterval(otpCountdownTimer);
+  if (otpPurpose === "reset") {
+    switchAuthForm("forgot");
+  } else {
+    switchAuthForm("register");
   }
+});
 
-  const btn = e.target.closest("button");
-  btn.disabled = true;
+// ============ OTP handling ============
+
+function startOtp(purpose) {
+  otpPurpose = purpose;
+  otpEmail.textContent = otpEmailValue;
+  resetOtpBoxes();
+  clearInterval(otpCountdownTimer);
+  hideError(otpError);
+  switchAuthForm("otp");
+  startOtpCountdown(30);
+  otpBoxes.querySelector("input").focus();
+}
+
+function resetOtpBoxes() {
+  otpBoxes.querySelectorAll("input").forEach((box, i) => {
+    box.value = "";
+    box.disabled = false;
+    box.tabIndex = i === 0 ? 0 : -1;
+  });
+}
+
+function startOtpCountdown(seconds) {
+  clearInterval(otpCountdownTimer);
+  let remaining = seconds;
+  otpResend.hidden = true;
+  otpResendLabel.hidden = false;
+  otpCountdown.textContent = remaining;
+
+  otpCountdownTimer = setInterval(() => {
+    remaining -= 1;
+    if (remaining > 0) {
+      otpCountdown.textContent = remaining;
+    } else {
+      clearInterval(otpCountdownTimer);
+      otpResendLabel.hidden = true;
+      otpResend.hidden = false;
+    }
+  }, 1000);
+}
+
+otpResend.addEventListener("click", async () => {
+  hideError(otpError);
+  try {
+    const result = await supabase.auth.signInWithOtp({
+      email: otpEmailValue,
+      options: { shouldCreateUser: otpPurpose === "reset" ? false : undefined },
+    });
+    if (result.error) {
+      showError(otpError, showAuthError(result.error));
+      return;
+    }
+    resetOtpBoxes();
+    startOtpCountdown(30);
+    otpBoxes.querySelector("input").focus();
+  } catch (error) {
+    showError(otpError, showAuthError(error));
+  }
+});
+
+function handleOtpInput() {
+  const boxes = [...otpBoxes.querySelectorAll("input")];
+  const value = boxes.map((b) => b.value).join("");
+  if (value.length === boxes.length) {
+    verifyOtp(value);
+  }
+}
+
+otpBoxes.querySelectorAll("input").forEach((box, index, arr) => {
+  box.addEventListener("input", (e) => {
+    const digit = e.target.value.replace(/\D/g, "");
+    box.value = digit.slice(0, 1);
+    if (box.value && index < arr.length - 1) {
+      arr[index + 1].focus();
+      arr[index + 1].select();
+    }
+    handleOtpInput();
+  });
+
+  box.addEventListener("keydown", (e) => {
+    if (e.key === "Backspace" && !box.value && index > 0) {
+      arr[index - 1].focus();
+      arr[index - 1].value = "";
+    }
+  });
+
+  box.addEventListener("paste", (e) => {
+    e.preventDefault();
+    const paste = (e.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "");
+    arr.forEach((b, i) => { b.value = paste[i] || ""; });
+    const last = arr[Math.min(paste.length, arr.length) - 1];
+    if (last) { last.focus(); last.select(); }
+    handleOtpInput();
+  });
+});
+
+async function verifyOtp(token) {
+  hideError(otpError);
+  otpBoxes.querySelectorAll("input").forEach((b) => (b.disabled = true));
 
   try {
-    const result = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
+    const result = await supabase.auth.verifyOtp({
+      email: otpEmailValue,
+      token,
+      type: "email",
     });
 
     if (result.error) {
-      showError(signinError, "Google sign-in failed. Please try again.");
-      btn.disabled = false;
+      showError(otpError, "That code isn't right. Check it and try again.");
+      resetOtpBoxes();
+      return;
+    }
+
+    if (otpPurpose === "signup") {
+      const upd = await supabase.auth.updateUser({
+        password: otpPendingPassword,
+        data: { display_name: otpPendingName },
+      });
+      if (upd.error) {
+        currentUser = result.data.user;
+        showAppShell();
+        return;
+      }
+      authFormSignup.reset();
+      currentUser = result.data.user;
+      showAppShell();
+    } else {
+      switchAuthForm("recovery");
+      recoveryPassword.focus();
     }
   } catch (error) {
-    showError(signinError, "Google sign-in failed. Please try again.");
-    btn.disabled = false;
+    showError(otpError, "Something went wrong verifying that code.");
+    resetOtpBoxes();
   }
+}
+
+function handleGoogleOAuth(btn, errorEl) {
+  if (!isSupabaseConfigured) {
+    showError(errorEl, "Google sign-in is unavailable right now.");
+    return;
+  }
+
+  btn.disabled = true;
+
+  supabase.auth
+    .signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    })
+    .then((result) => {
+      if (result.error) {
+        showError(errorEl, "Google sign-in failed. Please try again.");
+        btn.disabled = false;
+      }
+    })
+    .catch(() => {
+      showError(errorEl, "Google sign-in failed. Please try again.");
+      btn.disabled = false;
+    });
+}
+
+btnGoogleSignin.addEventListener("click", (e) => {
+  e.preventDefault();
+  handleGoogleOAuth(e.target.closest("button"), signinError);
 });
+
+if (document.querySelector("#btn-google-signup")) {
+  document.querySelector("#btn-google-signup").addEventListener("click", (e) => {
+    e.preventDefault();
+    handleGoogleOAuth(e.target.closest("button"), signupError);
+  });
+}
 
 // ============ Room Management ============
 
 function renderRooms(filterText = "") {
   const filtered = rooms.filter((r) => r.name.toLowerCase().includes(filterText.toLowerCase()));
+  const tabFiltered = filtered.filter((r) => {
+    if (activeTab === "groups") return r.room_type === "group";
+    return true;
+  });
 
-  if (!filtered.length) {
+  if (!tabFiltered.length) {
     roomList.innerHTML = '<p style="padding: 16px; text-align: center; color: var(--muted); font-size: 13px;">No rooms found.</p>';
     return;
   }
 
-  roomList.innerHTML = filtered.map((room) => {
-    const avatarGradients = [
-      "linear-gradient(135deg, var(--amber), var(--sun))",
-      "linear-gradient(135deg, var(--accent), var(--accent-strong))",
-      "linear-gradient(135deg, var(--amethyst), #bb7bff)",
-    ];
-    const hash = room.name.charCodeAt(0) % avatarGradients.length;
+  const palette = ["#2563eb", "#7c3aed", "#0d9488", "#ea580c", "#db2777", "#4f46e5", "#059669", "#b45309"];
+
+  roomList.innerHTML = tabFiltered.map((room) => {
+    const hash = room.name.charCodeAt(0) % palette.length;
+    const bg = palette[hash];
     const isActive = room.id === currentRoomId;
+    const initial = room.name.charAt(0).toUpperCase();
 
     return `
       <button class="room-item ${isActive ? "active" : ""}" data-room-id="${room.id}" type="button">
-        <div class="room-avatar" style="background: ${avatarGradients[hash]}">
-          ${room.name.charAt(0).toUpperCase()}
-        </div>
-        <div class="room-main">
-          <div class="room-top">
+        <span class="room-avatar" style="background: ${bg}">${initial}</span>
+        <span class="room-main">
+          <span class="room-top">
             <span class="room-name">${escapeHtml(room.name)}</span>
-          </div>
-        </div>
+          </span>
+          <span class="room-preview">
+            <span class="room-last">Tap to open</span>
+          </span>
+        </span>
       </button>
     `;
   }).join("");
@@ -404,11 +614,64 @@ function selectRoom(roomId) {
   if (!room) return;
 
   chatTitle.textContent = room.name;
-  chatSubtitle.textContent = "Room open";
+  chatSubtitle.textContent = room.room_type === "direct" ? "Direct conversation" : "Group room";
   chatEmpty.classList.add("hidden");
   chatActive.classList.remove("hidden");
 
+  renderChatEmpty(room);
+  renderRoomInfo(room);
   renderRooms();
+}
+
+function renderChatEmpty(room) {
+  if (!messagesEl) return;
+  messagesEl.innerHTML = `
+    <div class="chat-welcome">
+      <div class="empty-orbit">
+        <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <h3>${escapeHtml(room.name)}</h3>
+      <p>This room is ready for conversations. Messaging is coming soon.</p>
+    </div>`;
+}
+
+async function renderRoomInfo(room) {
+  if (!supabase) return;
+  if (infoHeadSub) infoHeadSub.textContent = "Room details";
+  if (memberList) memberList.innerHTML = "";
+  if (memberCount) memberCount.textContent = "0";
+
+  const { data, error } = await supabase
+    .from("room_members")
+    .select("profiles(display_name, username, status_text)")
+    .eq("room_id", room.id);
+
+  if (error || !memberList) return;
+
+  if (memberCount) memberCount.textContent = String(data.length);
+
+  if (!data.length) {
+    memberList.innerHTML = '<li style="color:var(--muted-2);font-size:13px">No members yet.</li>';
+    return;
+  }
+
+  memberList.innerHTML = data
+    .map((m) => {
+      const p = m.profiles || {};
+      const name = p.display_name || p.username || "Member";
+      return `
+        <li>
+          <span class="member-avatar" style="background:${avatarColor(name)}">${escapeHtml(name.charAt(0).toUpperCase())}</span>
+          <span class="member-name">${escapeHtml(name)}</span>
+          <span class="member-presence online">online</span>
+        </li>`;
+    })
+    .join("");
+}
+
+function avatarColor(name) {
+  const palette = ["#2563eb", "#7c3aed", "#0d9488", "#ea580c", "#db2777", "#4f46e5", "#059669", "#b45309"];
+  return palette[name.charCodeAt(0) % palette.length];
 }
 
 async function loadRooms() {
@@ -492,7 +755,6 @@ async function loadProfile() {
   const displayName = data?.display_name || user.user_metadata?.display_name || "User";
   meName.textContent = displayName;
   setUserAvatar(displayName, meAvatar);
-  railProfile.textContent = displayName.charAt(0).toUpperCase();
 
   if (data) {
     profileName.value = data.display_name || "";
@@ -579,6 +841,14 @@ btnInfo.addEventListener("click", () => {
 
 btnCloseInfo.addEventListener("click", () => {
   info.classList.remove("open");
+});
+
+btnInvite.addEventListener("click", () => {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(window.location.origin).catch(() => {});
+  }
+  btnInvite.textContent = "Invite link copied!";
+  setTimeout(() => { btnInvite.textContent = "Invite members"; }, 2500);
 });
 
 btnDeleteAccount.addEventListener("click", async () => {
@@ -676,4 +946,14 @@ if (isSupabaseConfigured) {
 // Room search
 roomSearch.addEventListener("input", (e) => {
   renderRooms(e.target.value);
+});
+
+// Tab filtering
+document.querySelectorAll(".side-tabs .tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".side-tabs .tab").forEach((t) => t.classList.remove("active"));
+    tab.classList.add("active");
+    activeTab = tab.dataset.tab;
+    renderRooms(roomSearch.value);
+  });
 });

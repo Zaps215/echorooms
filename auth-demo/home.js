@@ -1,28 +1,29 @@
 /* ============================================================
-   EchoRooms — Atrium · "Aurora" concept (v2)
-   Frontend-only demo. Room switching, messaging, workspace.
+   EchoRooms — in-app home (frontend-only demo)
+   Room switching, messaging, and panel interactions
    ============================================================ */
 
 (() => {
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
-  const tints = ["#f6b14a", "#2fd69a", "#ff9a56", "#9d7bff", "#4fd6c8", "#ffb95e", "#5ee8a8", "#ffce6b"];
+  const colors = ["#2563eb", "#7c3aed", "#0d9488", "#ea580c", "#db2777", "#4f46e5", "#059669", "#b45309"];
 
   const people = {
-    liam: { name: "Liam Carter", c: tints[0] },
-    zoe:  { name: "Zoe Park",    c: tints[1] },
-    noah: { name: "Noah Reyes",  c: tints[2] },
-    mia:  { name: "Mia Chen",    c: tints[3] },
-    luca: { name: "Luca Silva",  c: tints[4] },
-    ivy:  { name: "Ivy Moore",   c: tints[5] },
+    liam: { name: "Liam Carter", c: colors[0] },
+    zoe:  { name: "Zoe Park",    c: colors[1] },
+    noah: { name: "Noah Reyes",  c: colors[2] },
+    mia:  { name: "Mia Chen",    c: colors[3] },
+    luca: { name: "Luca Silva",  c: colors[4] },
+    ivy:  { name: "Ivy Moore",   c: colors[5] },
   };
+  Object.values(people).forEach((p, i) => p.id = Object.keys(people)[i]);
 
   const rooms = [
     {
       id: "r1", name: "Design Guild", type: "group", unread: 2,
       members: ["liam", "zoe", "noah"],
-      last: { from: "liam", text: "Merged the new landing page colors 🎨", t: "14:02" },
+      last: { id: "m1", from: "liam", text: "Merged the new landing page colors 🎨", t: "14:02" },
       messages: [
         { id: "d0", day: "Today" },
         { id: "m1", from: "liam", own: false, text: "Morning everyone! Just pushed the design tokens update.", t: "13:58", react: ["👏", "🎉"] },
@@ -40,7 +41,7 @@
     {
       id: "r2", name: "Capstone · Week 9", type: "group", unread: 0,
       members: ["liam", "zoe", "noah", "mia"],
-      last: { from: "noah", text: "Docs link: echorooms.dev/git-101", t: "11:20" },
+      last: { id: "m1", from: "michelle", text: "Docs link: echorooms.dev/git-101", t: "11:20" },
       messages: [
         { id: "d0", day: "Today" },
         { id: "m1", from: "zoe", own: false, text: "Reminder: repo review in 30 min.", t: "11:12" },
@@ -57,7 +58,7 @@
     {
       id: "r3", name: "Liam Carter", type: "dm", unread: 1,
       members: ["liam"],
-      last: { from: "liam", text: "Great, let's catch up later!", t: "Yesterday" },
+      last: { id: "m1", from: "liam", text: "Great, let's catch up later!", t: "Yesterday" },
       messages: [
         { id: "d0", day: "Yesterday" },
         { id: "m1", from: "liam", own: false, text: "Hey, want to review the handoff together?", t: "18:40" },
@@ -65,12 +66,14 @@
         { id: "m3", from: "liam", own: false, text: "Great, let's catch up later!", t: "18:46", react: ["✅"] },
       ],
       pinned: [],
-      tasks: [{ id: 1, text: "Review design handoff", done: false }],
+      tasks: [
+        { id: 1, text: "Review design handoff", done: false },
+      ],
     },
     {
       id: "r4", name: "Trip · Lisbon 🍇", type: "group", unread: 5,
       members: ["zoe", "luca", "ivy", "mia"],
-      last: { from: "mia", text: "Booked the Airbnb! 🎉", t: "Yesterday" },
+      last: { id: "m1", from: "mia", text: "Booked the Airbnb! 🎉", t: "Yesterday" },
       messages: [
         { id: "d0", day: "Yesterday" },
         { id: "m1", from: "luca", own: false, text: "Found cheap flights — check the pinned message.", t: "20:10" },
@@ -87,36 +90,38 @@
   ];
 
   let activeRoom = null;
+  let currentFilter = "all";
   let searchTerm = "";
 
   const roomList = $("#room-list");
   const messagesEl = $("#messages");
   const chatEmpty = $("#chat-empty");
   const chatActive = $("#chat-active");
-  const sidebar = $(".sidebar");
+  const sidebar = $("#sidebar");
   const info = $("#info");
 
+  /* ---------- Render helpers ---------- */
   const initials = (name) => name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
-  const avatarStyle = (c) => `background:linear-gradient(135deg, ${c}, ${c}cc); color:#141118;`;
 
-  function filteredRooms() {
-    return rooms.filter(r => r.name.toLowerCase().includes(searchTerm));
-  }
-
-  function roomAvatar(r) {
-    const c = r.type === "group" ? "#f6b14a" : people[r.members[0]].c;
-    return `${avatarStyle(c)}`;
+  function visibleRooms() {
+    return rooms.filter(r => {
+      const matchSearch = r.name.toLowerCase().includes(searchTerm);
+      if (!matchSearch) return false;
+      if (currentFilter === "unread") return r.unread > 0;
+      if (currentFilter === "groups") return r.type === "group";
+      return true;
+    });
   }
 
   function renderRoomList() {
-    const list = filteredRooms();
-    roomList.innerHTML = list.length ? "" : '<div style="padding:14px;color:var(--muted-2);font-size:13px;">No rooms found</div>';
+    const list = visibleRooms();
+    roomList.innerHTML = list.length ? "" : '<div class="room-empty" style="padding:14px;color:var(--muted-2);font-size:13px;">No rooms found</div>';
     list.forEach(r => {
+      const p = people[r.members[0]] || people.liam;
       const el = document.createElement("button");
       el.className = "room-item" + (activeRoom && activeRoom.id === r.id ? " active" : "");
-      const p = people[r.members[0]] || people.liam;
       el.innerHTML = `
-        <span class="room-avatar" style="${roomAvatar(r)}">
+        <span class="room-avatar" style="background:${r.type === "group" ? "linear-gradient(135deg,#6d28d9,#4f46e5)" : p.c}">
           ${r.type === "group" ? initials(r.name) : initials(p.name)}
         </span>
         <span class="room-main">
@@ -134,7 +139,7 @@
     });
   }
 
-  const reactSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a5 5 0 0 0-5 5v1.5a5 5 0 0 1 2-4V7a3 3 0 0 1 3-3zm0 0a5 5 0 0 1 5 5v1.5a5 5 0 0 0-2-4V7a3 3 0 0 0-3-3z" opacity=".55"/><path d="M12 3l1.5 3.5L17 6l-3 2 1 3.5-3-2.2-3 2.2 1-3.5-3-2 3.5-.5z"/></svg>';
+  const reactSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2A5 5 0 0 0 7 7c0 1.2.4 2.3 1 3.2Q8 7 12 4zm0 0A5 5 0 0 1 17 7c0 1.2-.4 2.3-1 3.2V7a5 5 0 0 0-4-4.9z" opacity=".6"/><path d="M2 13a10 10 0 1 0 20 0 10 10 0 0 0-20 0zm9-6.5A4.5 4.5 0 0 1 15.5 2 4.5 4.5 0 0 1 20 6.5 4.5 4.5 0 0 1 15.5 11 4.5 4.5 0 0 1 11 6.5z" transform="translate(2 3) scale(.42)"/><path d="M12 2a5 5 0 0 1 5 5v2l-1-.8a5 5 0 0 0-4-3z"/></svg>';
 
   function renderMessages(room) {
     messagesEl.innerHTML = "";
@@ -163,18 +168,19 @@
 
   function renderInfo(room) {
     $("#chat-title").textContent = room.name;
-    $("#info-head-sub").textContent = room.name;
-    const memberCount = room.type === "group" ? room.members.length + 1 : 2;
-    $("#chat-subtitle").textContent = `${room.members.length} online · ${memberCount} members`;
-    $("#member-count").textContent = memberCount;
+    const memberNames = room.members.map(id => people[id].name);
+    const otherCount = room.type === "group" ? ` · ${room.members.length + 2} members` : "";
+    $("#chat-subtitle").textContent = `${room.members.length} online${otherCount}`;
 
     const memberList = $("#member-list");
     memberList.innerHTML = "";
     if (room.type === "group") {
+      const me = { name: "Zaps (you)", c: colors[6] };
       memberList.insertAdjacentHTML("beforeend", `
         <li>
-          <span class="member-avatar" style="${avatarStyle(tints[6])}">${initials("Zaps")}</span>
-          <span class="member-name">Zaps (you)</span>
+          <span class="member-avatar" style="background:${me.c}">${initials("Zaps")}</span>
+          <span style="width:8px;display:inline-block"></span>
+          <span class="member-name">${me.name}</span>
           <span class="member-presence online">online</span>
         </li>`);
     }
@@ -182,18 +188,18 @@
       const p = people[id];
       memberList.insertAdjacentHTML("beforeend", `
         <li>
-          <span class="member-avatar" style="${avatarStyle(p.c)}">${initials(p.name)}</span>
+          <span class="member-avatar" style="background:${p.c}"></span>
           <span class="member-name">${p.name}</span>
-          <span class="member-presence ${idx === 0 ? "online" : ""}">${idx === 0 ? "online" : "recently"}</span>
+          <span class="member-presence ${idx === 0 ? "online" : ""}">${idx === 0 ? "online" : "last seen recently"}</span>
         </li>`);
     });
 
     const pinnedList = $("#pinned-list");
-    pinnedList.innerHTML = room.pinned.length ? "" : '<li style="color:var(--muted-2);padding:0">No pinned messages</li>';
+    pinnedList.innerHTML = room.pinned.length ? "" : '<li style="color:var(--muted-2)">No pinned messages</li>';
     room.pinned.forEach(text => {
       pinnedList.insertAdjacentHTML("beforeend", `
         <li>
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3l7 7-9 9H3v-9z"/></svg>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6M10 4v6l-3 4h8l-3-4V4"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
           <span>${text}</span>
         </li>`);
     });
@@ -204,7 +210,7 @@
       const li = document.createElement("li");
       li.className = t.done ? "done" : "";
       li.innerHTML = `
-        <span class="task-box"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+        <span class="task-box"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
         <span class="task-text">${t.text}</span>`;
       li.addEventListener("click", () => {
         t.done = !t.done;
@@ -214,6 +220,7 @@
     });
   }
 
+  /* ---------- Open room ---------- */
   function openRoom(room) {
     activeRoom = room;
     chatEmpty.classList.add("hidden");
@@ -222,19 +229,26 @@
     renderMessages(room);
     renderInfo(room);
     if (room.unread > 0) room.unread = 0;
-    if (window.innerWidth <= 760) sidebar.classList.remove("open");
+    if (window.innerWidth <= 720) sidebar.classList.remove("open");
   }
 
-  /* ----- Search ----- */
+  /* ---------- Filters & search ---------- */
+  $$(".tab").forEach(tab => tab.addEventListener("click", () => {
+    $$(".tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    currentFilter = tab.dataset.tab;
+    renderRoomList();
+  }));
+
   $("#room-search").addEventListener("input", (e) => {
     searchTerm = e.target.value.trim().toLowerCase();
     renderRoomList();
   });
 
-  /* ----- Composer ----- */
+  /* ---------- Composer ---------- */
   const input = $("#composer-input");
   const sendBtn = $("#btn-send");
-  const senderId = "none";
+  const senderId = "none"; // self
 
   function autoResize() {
     input.style.height = "auto";
@@ -249,20 +263,23 @@
     const text = input.value.trim();
     if (!text || !activeRoom) return;
     activeRoom.messages.push({
-      id: "m" + Date.now(), from: senderId, own: true, text,
-      t: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
+      id: "m" + Date.now(), from: senderId, own: true, text, t: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
     });
     renderMessages(activeRoom);
     input.value = "";
     autoResize();
     sendBtn.disabled = true;
   }
+
   sendBtn.addEventListener("click", sendMessage);
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
-  /* ----- Rail & info ----- */
+  /* ---------- Info panel & mobile ---------- */
+  if (window.matchMedia("(min-width: 1081px)").matches) {
+    // info panel visible on desktop; nothing needed
+  }
   $("#btn-new-room").addEventListener("click", () => {
     const name = prompt("Create a new room (demo):");
     if (name && name.trim()) {
@@ -277,34 +294,22 @@
       openRoom(rooms[0]);
     }
   });
-
   $("#btn-close-info").addEventListener("click", () => info.classList.remove("open"));
-  $("#btn-info").addEventListener("click", () => info.classList.add("open"));
+  $$(".icon-btn[title='More']").forEach(b => b.addEventListener("click", () => info.classList.add("open")));
   $("#btn-back").addEventListener("click", () => sidebar.classList.add("open"));
 
-  $$(".rail-btn").forEach(b => b.addEventListener("click", () => {
-    $$(".rail-btn").forEach(x => x.classList.remove("active"));
-    b.classList.add("active");
-  }));
-
-  $("#btn-logout").addEventListener("click", () => {
-    window.location.href = "index.html";
-  });
-
-  /* ----- Mock incoming ----- */
+  /* ---------- Mock incoming message ---------- */
   setInterval(() => {
     if (!activeRoom) return;
     const from = activeRoom.members[Math.floor(Math.random() * activeRoom.members.length)];
     const p = people[from];
-    const texts = [`Updates look great, ${p.name.split(" ")[0]} ✨`, "Any word on the review?", "Catch you at the next standup 👍", "Pinned a note for the room."];
-    activeRoom.messages.push({
-      id: "m" + Date.now(), from, own: false,
-      text: texts[Math.floor(Math.random() * texts.length)],
-      t: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
-    });
+    const texts = [`Just saw that ${p.name.split(" ")[0]} — updates looking great ✨`, "Any news on the review?", "Catch you in the next standup 👍", "Pinned a quick note for the room."];
+    const text = texts[Math.floor(Math.random() * texts.length)];
+    activeRoom.messages.push({ id: "m" + Date.now(), from, own: false, text, t: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) });
     renderMessages(activeRoom);
   }, 18000);
 
+  /* ---------- Init ---------- */
   renderRoomList();
   openRoom(rooms[0]);
 })();

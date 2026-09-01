@@ -1,15 +1,16 @@
 /* ============================================================
-   EchoRooms — Atrium · Auth (Aurora concept v2)
-   Frontend-only demo. View switching, validation, UX polish.
+   EchoRooms — frontend-only auth demo
+   Switching, validation, and UX polish (no backend / no storage)
    ============================================================ */
 
 (() => {
-  const app = document.querySelector(".card");
+  const app = document.querySelector(".panel-scroll");
   if (!app) return;
 
   const forms = [...app.querySelectorAll("[data-view]")];
   const byView = Object.fromEntries(forms.map(f => [f.dataset.view, f]));
 
+  /* ---------- View switching ---------- */
   function show(view) {
     forms.forEach(f => f.classList.toggle("active", f.dataset.view === view));
   }
@@ -28,11 +29,16 @@
     }
   });
 
+  /* ---------- Tiny helpers ---------- */
   const setError = (form, msg) => {
     const box = form.querySelector(".error-box");
     if (!box) return;
-    if (msg) { box.textContent = msg; box.hidden = false; }
-    else box.hidden = true;
+    if (msg) {
+      box.textContent = msg;
+      box.hidden = false;
+    } else {
+      box.hidden = true;
+    }
   };
 
   const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -46,9 +52,9 @@
     spinner.hidden = !loading;
   };
 
-  const fakeDelay = (ms = 850) => new Promise(r => setTimeout(r, ms));
+  const fakeDelay = (ms = 900) => new Promise(r => setTimeout(r, ms));
 
-  /* ----- Password strength ----- */
+  /* ---------- Password strength ---------- */
   const regPassword = document.getElementById("reg-password");
   if (regPassword) {
     const strength = regPassword.closest(".field").querySelector(".strength");
@@ -73,6 +79,7 @@
     }
   }
 
+  /* ---------- Handle submissions (frontend demo only) ---------- */
   app.addEventListener("submit", async (e) => {
     e.preventDefault();
     const form = e.target;
@@ -81,6 +88,7 @@
     const email = (data.email || "").trim();
     setError(form, "");
 
+    /* Client-side validation */
     if (!email || !validEmail(email)) {
       setError(form, "Please enter a valid email address.");
       return;
@@ -92,24 +100,34 @@
 
     if (view === "register") {
       if (!data.name) { setError(form, "Please enter your full name."); return; }
-      if (data.password.length < 8) { setError(form, "Password must be at least 8 characters."); return; }
-      if (!(/[A-Z]/.test(data.password) && /\d/.test(data.password))) {
-        setError(form, "Use a mix of letters and numbers for a stronger password.");
+      if (data.password.length < 8) {
+        setError(form, "Password must be at least 8 characters.");
         return;
       }
-      if (data.confirm_password !== data.password) { setError(form, "Passwords do not match. Please re-enter them."); return; }
+      if (data.confirm_password !== data.password) {
+        setError(form, "Passwords do not match. Please re-enter them.");
+        return;
+      }
       if (!data.terms) { setError(form, "Please accept the Terms and Privacy Policy."); return; }
     }
 
+    if (view === "register" && !(/[A-Z]/.test(data.password) && /\d/.test(data.password))) {
+      setError(form, "Use a mix of letters and numbers for a stronger password.");
+      return;
+    }
+
     setLoading(form, true);
+
+    /* Simulate a network call — nothing is persisted */
     await fakeDelay();
+
     setLoading(form, false);
 
     if (view === "forgot") {
       byView.sent.querySelector(".sent-email").textContent = email;
       show("sent");
     } else {
-      /* Frontend-only demo — route to the Atrium home */
+      /* Frontend-only demo — routeless: go to the in-app home */
       window.location.href = "home.html";
     }
   });

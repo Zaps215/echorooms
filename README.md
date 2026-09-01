@@ -12,10 +12,9 @@ EchoRooms is a realtime messaging workspace built with vanilla HTML, CSS, JavaSc
 
 ```bash
 npm install
-cp .env.example .env.local
 ```
 
-Add the project values to `.env.local`:
+Create a local `.env.local` file with the project values:
 
 ```text
 VITE_SUPABASE_URL=https://your-project.supabase.co
@@ -39,13 +38,16 @@ Open the URL printed by Vite. The Shared Foundation and Identity Service slices 
 ## Current Checkpoint
 
 - [x] Email/password sign-up and sign-in
-- [x] Google sign-in and secure sign-out
+- [x] Google sign-in and sign-up (shared OAuth handler on both screens)
 - [x] Automatic profile creation
 - [x] Password reset email and new-password recovery flow
 - [x] Profile editing with username and status
 - [x] Private avatar uploads with authenticated storage policies
 - [x] Session changes return unauthenticated users to the login view
 - [x] Secure room creation and room listing
+- [x] Centered, single-card auth layout with the logo above the form
+- [x] Light theme (blue primary, amber highlights) applied across the app shell
+- [x] Draft Terms &amp; Conditions and Privacy Policy pages linked from the signup form
 - [ ] Room invitations, acceptance, and member role management
 
 ## Commands
@@ -57,6 +59,7 @@ Open the URL printed by Vite. The Shared Foundation and Identity Service slices 
 ## Project Structure
 
 - `index.html` contains the initial application shell.
+- `public/` contains static pages served as-is (Terms &amp; Conditions and Privacy Policy).
 - `css/` contains the visual foundation.
 - `js/` contains the Supabase client and frontend modules.
 - `supabase/migrations/` contains database migrations and RLS policies.

@@ -24,15 +24,20 @@ Create rooms, manage membership, and control room-level permissions.
 - `inviteMember(roomId, email)`
 - `removeMember(roomId, userId)`
 
-## Implementation
+## Implementation Status
 
-- Build recent-room sidebar and create-room dialog.
-- Support direct and group room types.
-- Add member list and role display.
-- Add invitation creation through the `create-invitation` Edge Function.
-- Use short-lived, hashed invitation tokens.
-- Add RLS requiring room membership for room reads.
-- Allow only owners and admins to manage invitations and membership.
+Implemented:
+- A member can create a private group room through the `create_room` RPC.
+- Created rooms appear in the searchable sidebar and can be selected.
+- RLS requires room membership for room reads.
+- The information panel scaffold exists (members, options).
+
+Remaining:
+- Direct room type.
+- Member list population, invite dialogs, and invitation acceptance.
+- Role display and permission gating (owner/admin only for invitations and membership).
+- The `create-invitation` Edge Function with short-lived, hashed invitation tokens.
+- Empty, loading, and permission-denied states.
 
 ## Definition of Done
 
