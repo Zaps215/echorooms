@@ -64,7 +64,10 @@ Open the URL printed by Vite. The Shared Foundation and Identity Service slices 
 - `index.html` contains the initial application shell.
 - `public/` contains static pages served as-is (Terms &amp; Conditions and Privacy Policy).
 - `css/` contains the visual foundation.
-- `js/` contains the Supabase client and frontend modules.
+- `js/main.js` is the entry point: it wires the auth-session lifecycle and bootstraps each feature module.
+- `js/core/` holds shared concerns — the DOM registry (`dom.js`), app state (`state.js`), Supabase access (`supabase.js`), and reusable helpers (`utils.js`, `navigation.js`).
+- `js/features/` holds feature logic — auth (`auth.js`), email OTP verification (`otp.js`), rooms (`rooms.js`), profile/account (`profile.js`), and chat (`chat.js`).
+- `js/supabase-client.js` initializes the Supabase client.
 - `supabase/migrations/` contains database migrations and RLS policies.
 - `supabase/functions/` is reserved for secure Edge Functions.
 - `echorooms-services/` contains the numbered service build plans.
