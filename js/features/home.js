@@ -7,7 +7,7 @@
 import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
-import { showHome } from "../core/navigation.js";
+import { showHome, toggleSidebar } from "../core/navigation.js";
 import { openRoomDialog } from "./rooms.js";
 
 /** Renders the greeting using the signed-in user's display name. */
@@ -30,6 +30,10 @@ async function renderGreeting() {
 
 function initCta() {
   dom.btnHomeNewRoom?.addEventListener("click", () => openRoomDialog());
+  dom.btnMenu?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleSidebar();
+  });
 }
 
 export function initHome() {

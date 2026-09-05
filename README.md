@@ -33,7 +33,7 @@ Start the local frontend:
 npm run dev
 ```
 
-Open the URL printed by Vite. The Shared Foundation and Identity Service slices are implemented, including OTP email verification. Room creation and room listing are also available; realtime messaging and invitations are next.
+Open the URL printed by Vite. The Shared Foundation and Identity Service slices are implemented, including OTP email verification. Room creation and room listing are also available along with a mobile-responsive app shell; realtime messaging and invitations are next.
 
 ## Current Checkpoint
 
@@ -43,6 +43,8 @@ Open the URL printed by Vite. The Shared Foundation and Identity Service slices 
 - [x] Email OTP verification on sign-up (6-digit code in a Telegram-style box UI) to block fake accounts
 - [x] Password reset via email OTP (replaces the reset-link flow)
 - [x] Profile editing with username and status
+- [x] Dedicated Telegram-style profile page: name in the header, large centered avatar with camera badge, name/handle/status, and a row of circular action buttons (Edit, Sign out, Delete)
+- [x] Confirm-on-logout and type-your-email confirm-on-delete flows via a shared confirmation dialog
 - [x] Private avatar uploads with authenticated storage policies
 - [x] Session changes return unauthenticated users to the login view
 - [x] Secure room creation and room listing
@@ -51,6 +53,7 @@ Open the URL printed by Vite. The Shared Foundation and Identity Service slices 
 - [x] Telegram-style three-pane app homepage (sidebar with All/Groups tabs and round avatars, chat pane, and a room-info panel that lists members)
 - [x] First-run homepage with a welcome greeting and "create your first room" call-to-action when a new user has no rooms
 - [x] Draft Terms &amp; Conditions and Privacy Policy pages linked from the signup form
+- [x] Mobile-responsive app shell: off-canvas room-list and info-panel drawers, hamburger menu, shared tap-anywhere/Escape close, safe-area insets, 16px inputs (no iOS focus-zoom), and a fixed bug where the info panel never appeared previously
 - [ ] Realtime messaging (the chat pane currently shows a welcome state)
 - [ ] Room invitations, acceptance, and member role management
 

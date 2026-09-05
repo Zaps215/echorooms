@@ -4,8 +4,7 @@
 // a placeholder. This module will grow into the realtime messaging feature.
 
 import * as dom from "../core/dom.js";
-import { state } from "../core/state.js";
-import { showHome } from "../core/navigation.js";
+import { closeInfo, openSidebar } from "../core/navigation.js";
 
 function initComposer() {
   dom.btnSend?.addEventListener("click", () => {
@@ -24,8 +23,8 @@ function initComposer() {
 
 function initMobileBack() {
   dom.btnBack?.addEventListener("click", () => {
-    state.currentRoomId = null;
-    showHome();
+    closeInfo();
+    openSidebar();
   });
 }
 

@@ -1,18 +1,29 @@
-// Profile management, the info panel, and account lifecycle.
+// Profile management, the profile page, and account lifecycle.
 //
-// Loads and saves the signed-in user's profile (including avatar upload to
-// Supabase Storage), exposes the info panel controls (invite copy, delete
-// account), and wires logout. Account deletion goes through the server-side
+// Identity is presented on a dedicated profile page (opened from the sidebar
+// footer) that mirrors the pattern of messaging apps: a large avatar, name,
+// handle, and status, with account actions grouped below. Editing happens in
+// the Edit-profile dialog. Signing out and deleting the account both go
+// through the shared confirm dialog — deletion additionally requires the
+// user's own email to be typed. Account deletion runs the server-side
 // delete_my_account RPC so cascading cleanup happens on the backend.
 
 import * as dom from "../core/dom.js";
 import { state, resetAppState } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
 import { showError, hideError, setUserAvatar } from "../core/utils.js";
-import { showAuthShell } from "../core/navigation.js";
+import {
+  showAuthShell,
+  showProfile,
+  hideProfile,
+  openInfo,
+  closeInfo,
+} from "../core/navigation.js";
+import { showConfirm } from "../core/confirm.js";
 
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
+/** Loads the signed-in user's profile into the footer, profile page, and edit form. */
 export async function loadProfile() {
   if (!supabase) return;
   const { data: { user } } = await supabase.auth.getUser();
@@ -27,9 +38,23 @@ export async function loadProfile() {
     .single();
 
   const displayName = data?.display_name || user.user_metadata?.display_name || "User";
+
+  // Sidebar footer.
   dom.meName.textContent = displayName;
   setUserAvatar(displayName, dom.meAvatar);
 
+  // Profile page header + hero (Telegram-style: name doubles as the title).
+  if (dom.profileHeadTitle) dom.profileHeadTitle.textContent = displayName;
+  if (dom.profileDisplayName) dom.profileDisplayName.textContent = displayName;
+  if (dom.profileHandleEl) {
+    dom.profileHandleEl.textContent = data?.username ? `@${data.username}` : "";
+  }
+  if (dom.profileStatusText) dom.profileStatusText.textContent = data?.status_text || "";
+  if (dom.profileAvatarEl) {
+    setUserAvatar(displayName, dom.profileAvatarEl);
+  }
+
+  // Prefill the edit dialog.
   if (data) {
     dom.profileName.value = data.display_name || "";
     dom.profileUsername.value = data.username || "";
@@ -37,18 +62,43 @@ export async function loadProfile() {
   }
 }
 
+/** Opens the Edit-profile dialog, refreshing the latest profile first. */
+export async function openProfileDialog() {
+  hideError(dom.profileError);
+  if (state.currentUser) {
+    await loadProfile();
+  }
+  hideError(dom.profilePageError);
+  dom.profileDialog.showModal();
+  dom.profileName.focus();
+}
+
+/** Destructive account actions require an explicit typed confirmation. */
+function requestAccountDeletion() {
+  return showConfirm({
+    danger: true,
+    title: "Delete your account?",
+    message:
+      "This permanently deletes your account, rooms, messages, and files. This cannot be undone.",
+    confirmLabel: "Delete account",
+    requiredText: state.currentUser?.email || "DELETE",
+  });
+}
+
+function requestSignOut() {
+  return showConfirm({
+    title: "Sign out of EchoRooms?",
+    message: "You can sign back in anytime with your email and password.",
+    confirmLabel: "Sign out",
+  });
+}
+
 function initDialogControls() {
   dom.profileDialogClose?.addEventListener("click", () => dom.profileDialog.close());
   dom.profileCancel?.addEventListener("click", () => dom.profileDialog.close());
 
-  dom.btnEditProfile?.addEventListener("click", async () => {
-    hideError(dom.profileError);
-    if (state.currentUser) {
-      await loadProfile();
-    }
-    dom.profileDialog.showModal();
-    dom.profileName.focus();
-  });
+  dom.btnProfileEdit?.addEventListener("click", openProfileDialog);
+  dom.btnProfileAvatar?.addEventListener("click", openProfileDialog);
 
   dom.profileForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -104,9 +154,60 @@ function initDialogControls() {
   });
 }
 
+function initProfilePage() {
+  dom.btnOpenProfile?.addEventListener("click", () => showProfile());
+  dom.btnProfileBack?.addEventListener("click", () => hideProfile());
+
+  // The info panel's "Edit profile" lands on the full profile page.
+  dom.btnEditProfile?.addEventListener("click", () => showProfile());
+}
+
+function initSignOut() {
+  const signOut = async () => {
+    if (!supabase) return;
+    const confirmed = await requestSignOut();
+    if (!confirmed) return;
+    const result = await supabase.auth.signOut();
+    // Errors are surfaced by the auth state handler, which returns us to login.
+    void result;
+  };
+
+  dom.btnLogout?.addEventListener("click", signOut);
+  dom.btnProfileLogout?.addEventListener("click", signOut);
+}
+
+function initAccountDeletion() {
+  dom.btnProfileDelete?.addEventListener("click", async () => {
+    if (!supabase || !state.currentUser) return;
+
+    const confirmed = await requestAccountDeletion();
+    if (!confirmed) return;
+
+    const btn = dom.btnProfileDelete;
+    btn.disabled = true;
+    hideError(dom.profilePageError);
+
+    try {
+      const result = await supabase.rpc("delete_my_account");
+      if (result.error) {
+        showError(dom.profilePageError, "Could not delete account. Please try again.");
+        btn.disabled = false;
+        return;
+      }
+
+      await supabase.auth.signOut();
+      resetAppState();
+      showAuthShell();
+    } catch (error) {
+      showError(dom.profilePageError, "Could not delete account. Please try again.");
+      btn.disabled = false;
+    }
+  });
+}
+
 function initInfoPanel() {
-  dom.btnInfo?.addEventListener("click", () => dom.info.classList.add("open"));
-  dom.btnCloseInfo?.addEventListener("click", () => dom.info.classList.remove("open"));
+  dom.btnInfo?.addEventListener("click", () => openInfo());
+  dom.btnCloseInfo?.addEventListener("click", () => closeInfo());
 
   dom.btnInvite?.addEventListener("click", () => {
     if (navigator.clipboard) {
@@ -117,46 +218,12 @@ function initInfoPanel() {
       dom.btnInvite.textContent = "Invite members";
     }, 2500);
   });
-
-  dom.btnDeleteAccount?.addEventListener("click", async () => {
-    if (!supabase || !window.confirm("Delete your EchoRooms account and all data? This cannot be undone.")) {
-      return;
-    }
-
-    const btn = dom.btnDeleteAccount;
-    btn.disabled = true;
-
-    try {
-      const result = await supabase.rpc("delete_my_account");
-      if (result.error) {
-        showError(dom.profileError, "Could not delete account. Please try again.");
-        btn.disabled = false;
-        return;
-      }
-
-      await supabase.auth.signOut();
-      resetAppState();
-      showAuthShell();
-    } catch (error) {
-      showError(dom.profileError, "Could not delete account. Please try again.");
-      btn.disabled = false;
-    }
-  });
-}
-
-function initLogout() {
-  dom.btnLogout?.addEventListener("click", async () => {
-    if (!supabase) return;
-    dom.btnLogout.disabled = true;
-    const result = await supabase.auth.signOut();
-    // Errors are surfaced by the auth state handler, which returns us to login.
-    void result;
-    dom.btnLogout.disabled = false;
-  });
 }
 
 export function initProfile() {
   initDialogControls();
+  initProfilePage();
+  initSignOut();
+  initAccountDeletion();
   initInfoPanel();
-  initLogout();
 }

@@ -22,6 +22,7 @@ function queryAll(selector) {
 
 export const authWrapper = query("auth-wrapper");
 export const appWrapper = query("app-wrapper");
+export const sidebar = query("sidebar");
 
 export const authFormSignin = query("auth-form-signin");
 export const authFormSignup = query("auth-form-signup");
@@ -65,6 +66,7 @@ export const meAvatar = query("me-avatar");
 export const meName = query("me-name");
 export const btnNewRoom = query("btn-new-room");
 export const btnLogout = query("btn-logout");
+export const btnOpenProfile = query("btn-open-profile");
 
 export const chatEmpty = query("chat-empty");
 export const chatActive = query("chat-active");
@@ -81,6 +83,8 @@ export const homeGreeting = query("home-greeting");
 export const homeTitle = query("home-title");
 export const homeSubtitle = query("home-subtitle");
 export const btnHomeNewRoom = query("btn-home-new-room");
+export const btnMenu = query("btn-menu");
+export const drawerBackdrop = query("drawer-backdrop");
 
 export const info = query("info");
 export const btnCloseInfo = query("btn-close-info");
@@ -89,7 +93,6 @@ export const memberList = query("member-list");
 export const memberCount = query("member-count");
 export const btnInvite = query("btn-invite");
 export const btnEditProfile = query("btn-edit-profile");
-export const btnDeleteAccount = query("btn-delete-account");
 
 export const roomDialog = query("room-dialog");
 export const roomForm = query("room-form");
@@ -107,6 +110,29 @@ export const profileAvatar = query("profile-avatar");
 export const profileError = query("profile-error");
 export const profileDialogClose = query("profile-dialog-close");
 export const profileCancel = query("profile-cancel");
+
+export const profileView = query("profile-view");
+export const btnProfileBack = query("btn-profile-back");
+export const btnProfileAvatar = query("btn-profile-avatar");
+export const btnProfileEdit = query("btn-profile-edit");
+export const btnProfileLogout = query("btn-profile-logout");
+export const btnProfileDelete = query("btn-profile-delete");
+export const profileAvatarEl = query("profile-avatar-lg");
+export const profileDisplayName = query("profile-display-name");
+export const profileHeadTitle = query("profile-head-title");
+export const profileHandleEl = query("profile-handle");
+export const profileStatusText = query("profile-status-text");
+export const profilePageError = query("profile-page-error");
+
+export const confirmDialog = query("confirm-dialog");
+export const confirmTitle = query("confirm-title");
+export const confirmMessage = query("confirm-message");
+export const confirmTextWrap = query("confirm-text-wrap");
+export const confirmTextLabel = query("confirm-text-label");
+export const confirmTextInput = query("confirm-text-input");
+export const confirmOk = query("confirm-ok");
+export const confirmCancel = query("confirm-cancel");
+export const confirmClose = query("confirm-close");
 
 export const passwordToggles = queryAll("[data-reveal]");
 export const tabs = queryAll(".side-tabs .tab");

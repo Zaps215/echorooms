@@ -121,6 +121,8 @@ export function selectRoom(roomId) {
     room.room_type === "direct" ? "Direct conversation" : "Group room";
   showRoomChat();
 
+  if (dom.info) dom.info.classList.remove("is-hidden");
+
   renderChatEmpty(room);
   renderRoomInfo(room);
   renderRooms();
@@ -146,6 +148,8 @@ export async function loadRooms() {
 
 export function openRoomDialog() {
   hideError(dom.roomError);
+  closeSidebar();
+  closeInfo();
   dom.roomForm.reset();
   dom.roomDialog.showModal();
   dom.roomName.focus();

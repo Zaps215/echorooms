@@ -123,7 +123,8 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 - Left sidebar with rooms and unread counts
 - Main conversation panel
 - Right room-information panel on desktop
-- Bottom navigation or collapsible panels on mobile
+- Mobile: the sidebar and information panel become off-canvas drawers. A hamburger button in the home header opens the room list; the chat header's back arrow returns to the list; tapping the backdrop or pressing Escape closes any drawer. The information panel opens from the room header as a right-hand drawer on small screens.
+- Safe-area insets respect notches/keyboards, and form/chat inputs use 16px type so iOS does not zoom on focus.
 
 ### Room list
 
@@ -160,12 +161,12 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 
 ### Settings
 
-- Profile settings
-- Avatar upload
+- Profile page (WhatsApp/Telegram style) opened from the sidebar footer: large avatar, name, handle, and status, with account actions grouped below
+- Profile editing and avatar upload
 - Notification preferences
 - Theme preference
-- Account deletion
-- Sign out
+- Account deletion gated on typing the account email, with a shared confirm dialog
+- Sign out, also gated on an explicit confirmation dialog
 
 ---
 
@@ -420,6 +421,10 @@ echorooms/
 ```
 
 The frontend should handle loading, empty, permission-denied, offline, and failure states as carefully as successful states.
+
+The current frontend sticks to the service-split principle but uses flattened module folders instead of the nested tree sketched above: `js/core/` (shared: `dom.js` state registry, `state.js`, `supabase.js`, `utils.js`, `navigation.js`) and `js/features/` (per-feature: `auth.js`, `otp.js`, `rooms.js`, `profile.js`, `chat.js`, `home.js`). `js/main.js` boots everything. All shell/drawer navigation behavior lives in `core/navigation.js`, so no feature module manipulates drawer classes directly.
+
+Mobile drawers (<code>≤720px</code> room list, <code>≤1080px</code> info panel) reuse a shared backdrop and adjust via `core/navigation.js`, which centralizes open/close/backdrop state.
 
 ---
 

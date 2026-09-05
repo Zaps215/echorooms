@@ -9,7 +9,8 @@
 import "../css/styles.css";
 import { supabase, isSupabaseConfigured } from "./core/supabase.js";
 import { state, resetAppState } from "./core/state.js";
-import { switchAuthForm, showAppShell, showAuthShell } from "./core/navigation.js";
+import { switchAuthForm, showAppShell, showAuthShell, initNavigation } from "./core/navigation.js";
+import { initConfirm } from "./core/confirm.js";
 
 import { initAuth } from "./features/auth.js";
 import { initOtp } from "./features/otp.js";
@@ -19,6 +20,8 @@ import { initChat } from "./features/chat.js";
 import { initHome, enterHome } from "./features/home.js";
 
 // --- Feature wiring (listener setup only) ---
+initNavigation();
+initConfirm();
 initAuth();
 initOtp();
 initRooms();

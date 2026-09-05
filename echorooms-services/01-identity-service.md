@@ -32,6 +32,8 @@ Manage authentication, profiles, sessions, and avatars.
 - Protect the application shell from unauthenticated users.
 - Validate profile fields and avatar MIME type and size.
 - Add RLS so users can read appropriate profiles and update only their own profile.
+- Provide a dedicated Telegram-style profile page (opened from the sidebar footer): the display name appears as the header title, with a large centered avatar (camera badge opens editing), name, handle, and status, plus a row of circular action buttons for edit profile, sign out, and delete account.
+- Route sign-out and account deletion through a shared, promise-based confirm dialog (`js/core/confirm.js`). Deletion is a danger action that requires the user to type their own email to confirm, then runs the server-side `delete_my_account` RPC.
 
 ## Definition of Done
 
@@ -41,3 +43,4 @@ Manage authentication, profiles, sessions, and avatars.
 - Profile updates and avatar uploads work.
 - Expired sessions redirect to login.
 - Users cannot modify another user's profile.
+- Signing out and deleting the account both require an explicit confirmation; deletion is gated on typing the account email.

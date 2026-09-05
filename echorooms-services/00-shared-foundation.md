@@ -30,10 +30,14 @@ None.
 - Create the `supabase/migrations/` and `supabase/functions/` folders.
 - Build a responsive shell with a left sidebar (brand, search, All/Groups tabs, room list, and profile footer), a conversation area, and an information panel.
 - Show a first-run homepage with a welcome greeting and a "create your first room" call-to-action when a signed-in user has no rooms to open.
+- Make the shell mobile-first: below `720px` the sidebar becomes an off-canvas drawer opened from a hamburger button (home header) and the back arrow (chat header); below `1080px` the information panel becomes a right-hand drawer opened from the room header. A shared backdrop plus Escape closes either drawer, with all drawer logic centralized in `core/navigation.js`.
+- Respect viewport safe-area insets, use `100dvh` for the app height, and size form/chat inputs at 16px to prevent iOS focus-zoom.
 
 ## Definition of Done
 
 - The static frontend loads on desktop and mobile.
+- The info panel appears on desktop as the right column and on mobile as an openable right-hand drawer (it was previously hidden entirely).
+- Drawers open/close via a shared backdrop and Escape without per-feature drawer juggling.
 - Supabase connection succeeds without exposing private keys.
 - Environment setup and migration commands are documented.
 - Shared focus, loading, empty, and error states exist.
