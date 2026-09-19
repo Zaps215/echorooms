@@ -565,6 +565,59 @@ input, textarea { font-family: inherit; }
   border-radius: 14px; padding: 2px 8px; box-shadow: var(--shadow-sm);
 }
 
+.msg-deleted { color: var(--muted-2); font-size: 13px; }
+.bubble-deleted { background: rgba(0,0,0,.03) !important; box-shadow: none; }
+.msg-state { color: var(--muted-2); }
+.msg-state.sending { font-size: 10px; }
+.msg-check { color: var(--accent); }
+.msg-retry {
+  border: 0; background: none; padding: 0; margin-left: 2px;
+  color: var(--danger); font-size: 10.5px; font-weight: 700; cursor: pointer;
+}
+.msg-retry:hover { text-decoration: underline; }
+
+.msg-menu { position: relative; display: flex; align-items: center; align-self: center; }
+.msg-menu-btn {
+  width: 24px; height: 24px; border: 0; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--muted-2); font-size: 16px; line-height: 1;
+  opacity: 0; transition: opacity .15s, background .15s;
+}
+.msg:hover .msg-menu-btn, .msg-menu-btn:focus { opacity: 1; }
+.msg-menu-btn:hover { background: rgba(0,0,0,.06); color: var(--ink); }
+@media (max-width: 720px) {
+  .msg-menu-btn { opacity: 1; }
+}
+.msg-menu-list {
+  position: absolute; top: 100%; right: 0; z-index: 5; min-width: 108px;
+  background: var(--panel-bg); border: 1px solid var(--line);
+  border-radius: 10px; box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,.14));
+  padding: 4px; display: flex; flex-direction: column;
+}
+.msg-menu-list.is-hidden { display: none; }
+.msg-menu-list button {
+  border: 0; background: none; text-align: left; cursor: pointer;
+  padding: 7px 10px; border-radius: 7px; font-size: 13px; color: var(--ink);
+}
+.msg-menu-list button:hover { background: rgba(0,0,0,.05); }
+.msg-menu-list button.danger { color: var(--danger); }
+
+.bubble.editing { max-width: 78%; width: 78%; }
+.bubble-edit { display: flex; flex-direction: column; gap: 6px; }
+.bubble-edit-input {
+  width: 100%; border: 0; outline: none; resize: none; background: transparent;
+  font: inherit; color: var(--ink); min-height: 40px; max-height: 140px;
+}
+.bubble-edit-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.bubble-edit-error { color: var(--danger); font-size: 12px; margin-right: auto; }
+.bubble-edit-cancel {
+  border: 0; background: none; color: var(--muted); font-size: 12.5px; cursor: pointer;
+}
+.bubble-edit-save {
+  border: 0; border-radius: 8px; padding: 5px 12px; cursor: pointer;
+  background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 600;
+}
+.bubble-edit-save:disabled { opacity: .5; cursor: default; }
+
 .composer { border-top: 1px solid var(--line); padding: 10px 14px; background: var(--panel-bg); }
 .composer-inner {
   display: flex; align-items: flex-end; gap: 6px;

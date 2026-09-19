@@ -14,18 +14,20 @@ EchoRooms is a realtime messaging workspace built with vanilla HTML, CSS, JavaSc
 npm install
 ```
 
-Create a local `.env.local` file with the project values:
+Create a local `.env` file with the project values (copy `.env.example`):
 
 ```text
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-Apply the first migration through the Supabase dashboard SQL editor or with the Supabase CLI after linking your project:
+Set up the database by pasting `supabase/setup.sql` into the Supabase SQL editor, or by applying the incremental files with the Supabase CLI after linking your project:
 
 ```bash
 supabase db push
 ```
+
+`supabase/setup.sql` is idempotent and consolidates every migration, so it is the fastest path for a fresh or recreated project. The per-file migrations in `supabase/migrations/` remain the source of truth.
 
 Start the local frontend:
 
@@ -33,7 +35,7 @@ Start the local frontend:
 npm run dev
 ```
 
-Open the URL printed by Vite. The Shared Foundation and Identity Service slices are implemented, including OTP email verification. Room creation and room listing are also available along with a mobile-responsive app shell; realtime messaging and invitations are next.
+Open the URL printed by Vite. The Shared Foundation, Identity Service, Room Service, and Messaging Service slices are implemented, including OTP email verification, room creation and listing, and realtime text messaging. Room invitations and the reaction/media services are next.
 
 ## Current Checkpoint
 
@@ -54,7 +56,7 @@ Open the URL printed by Vite. The Shared Foundation and Identity Service slices 
 - [x] First-run homepage with a welcome greeting and "create your first room" call-to-action when a new user has no rooms
 - [x] Draft Terms &amp; Conditions and Privacy Policy pages linked from the signup form
 - [x] Mobile-responsive app shell: off-canvas room-list and info-panel drawers, hamburger menu, shared tap-anywhere/Escape close, safe-area insets, 16px inputs (no iOS focus-zoom), and a fixed bug where the info panel never appeared previously
-- [ ] Realtime messaging (the chat pane currently shows a welcome state)
+- [x] Realtime messaging: paginated history, day-grouped stream, optimistic sends with retry, edit and soft-delete, and live updates per room
 - [ ] Room invitations, acceptance, and member role management
 
 ## Commands
@@ -77,6 +79,6 @@ Open the URL printed by Vite. The Shared Foundation and Identity Service slices 
 - `echorooms-services/` contains the numbered service build plans.
 - `ECHOROOMS_PROGRAM.md` is the complete product specification.
 
-Never commit `.env.local` or service-role keys.
+Never commit `.env` or service-role keys.
 
 The site favicon is the Flaticon speech-bubble icon served from the official Flaticon CDN. Flaticon attribution: https://www.flaticon.com/free-icons/chat

@@ -8,7 +8,8 @@ import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
 import { showError, hideError, escapeHtml, avatarColor } from "../core/utils.js";
-import { showRoomChat } from "../core/navigation.js";
+import { showRoomChat, closeSidebar, closeInfo } from "../core/navigation.js";
+import { openRoom } from "./chat.js";
 
 const ROOM_PALETTE = [
   "#2563eb",
@@ -64,18 +65,6 @@ function renderRooms(filterText = "") {
   });
 }
 
-function renderChatEmpty(room) {
-  if (!dom.messagesEl) return;
-  dom.messagesEl.innerHTML = `
-    <div class="chat-welcome">
-      <div class="empty-orbit">
-        <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      </div>
-      <h3>${escapeHtml(room.name)}</h3>
-      <p>This room is ready for conversations. Messaging is coming soon.</p>
-    </div>`;
-}
-
 async function renderRoomInfo(room) {
   if (!supabase) return;
   if (dom.infoHeadSub) dom.infoHeadSub.textContent = "Room details";
@@ -123,7 +112,7 @@ export function selectRoom(roomId) {
 
   if (dom.info) dom.info.classList.remove("is-hidden");
 
-  renderChatEmpty(room);
+  openRoom(roomId);
   renderRoomInfo(room);
   renderRooms();
 }
@@ -132,8 +121,9 @@ export async function loadRooms() {
   if (!supabase) return 0;
   const { data, error } = await supabase
     .from("room_members")
-    .select("rooms(id, name, room_type, created_at)")
-    .order("created_at", { ascending: false });
+    .select("joined_at, rooms(id, name, room_type, created_at)")
+    .eq("user_id", state.currentUser.id)
+    .order("joined_at", { ascending: false });
 
   if (error) return 0;
 

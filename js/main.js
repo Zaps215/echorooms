@@ -16,7 +16,7 @@ import { initAuth } from "./features/auth.js";
 import { initOtp } from "./features/otp.js";
 import { initRooms, loadRooms } from "./features/rooms.js";
 import { initProfile, loadProfile } from "./features/profile.js";
-import { initChat } from "./features/chat.js";
+import { initChat, closeRoom } from "./features/chat.js";
 import { initHome, enterHome } from "./features/home.js";
 
 // --- Feature wiring (listener setup only) ---
@@ -42,6 +42,7 @@ async function enterApp(user) {
 }
 
 function exitToAuth() {
+  closeRoom();
   resetAppState();
   showAuthShell();
 }
