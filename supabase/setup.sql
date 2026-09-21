@@ -480,7 +480,11 @@ begin
   if found is null then
     insert into public.rooms (name, room_type, created_by)
     values (
-      coalesce((select display_name from public.profiles where id = other_user_id), 'Direct'),
+      coalesce(
+        nullif(trim((select display_name from public.profiles where id = other_user_id)), ''),
+        (select username from public.profiles where id = other_user_id),
+        'Direct'
+      ),
       'direct',
       me
     )
