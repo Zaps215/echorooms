@@ -140,6 +140,14 @@ export const usernameForm = query("username-form");
 export const usernameInput = query("username-input");
 export const usernameError = query("username-error");
 
+export const inviteDialog = query("invite-dialog");
+export const inviteForm = query("invite-form");
+export const inviteUsername = query("invite-username");
+export const inviteResults = query("invite-results");
+export const inviteError = query("invite-error");
+export const inviteDialogClose = query("invite-dialog-close");
+export const inviteCancel = query("invite-cancel");
+
 export const confirmDialog = query("confirm-dialog");
 export const confirmTitle = query("confirm-title");
 export const confirmMessage = query("confirm-message");

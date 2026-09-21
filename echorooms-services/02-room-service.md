@@ -31,12 +31,13 @@ Implemented:
 - Created rooms appear in the searchable sidebar and can be selected.
 - RLS requires room membership for room reads.
 - The information panel scaffold exists (members, options).
+- **Direct rooms** (`create_direct_room` RPC): private two-person rooms, reused when one exists, created by username search from the DM dialog.
+- **Invite members** dialog: a room admin searches by username, calls `add_room_member`, and the room key is handed off via `shareRoomKey`/`shareMissingKeys` (0007). Invited membership appears in the member list immediately for the inviter and for the invitee on their next load.
 
 Remaining:
-- Direct room type.
-- Member list population, invite dialogs, and invitation acceptance.
-- Role display and permission gating (owner/admin only for invitations and membership).
-- The `create-invitation` Edge Function with short-lived, hashed invitation tokens.
+- Invitation acceptance flow and short-lived hashed invite tokens (Edge Function).
+- Role display and permission gating in the UI beyond owner/admin checks in the RPCs.
+- `removeMember` / role change RPCs and UI.
 - Empty, loading, and permission-denied states.
 
 ## Definition of Done

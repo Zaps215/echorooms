@@ -239,16 +239,7 @@ function initAccountDeletion() {
 function initInfoPanel() {
   dom.btnInfo?.addEventListener("click", () => openInfo());
   dom.btnCloseInfo?.addEventListener("click", () => closeInfo());
-
-  dom.btnInvite?.addEventListener("click", () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.origin).catch(() => {});
-    }
-    dom.btnInvite.textContent = "Invite link copied!";
-    setTimeout(() => {
-      dom.btnInvite.textContent = "Invite members";
-    }, 2500);
-  });
+  // The info panel's "Invite members" button opens the invite dialog (rooms.js).
 }
 
 function initUsernameOnboarding() {

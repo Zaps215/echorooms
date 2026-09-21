@@ -60,7 +60,9 @@ Open the URL printed by Vite. The Shared Foundation, Identity Service, Room Serv
 - [x] Required unique @username claimed on first login (onboarding dialog); used for sender labels, mention autocomplete, and direct-room search by username
 - [x] Hybrid end-to-end encryption: per-room AES-GCM keys wrapped per member with RSA-OAEP identities; email/password keys recoverable via PBKDF2, social logins device-bound; edits/deletes re-encrypt
 - [x] Direct rooms: search a user by username and open a private encrypted conversation
-- [ ] Room invitations, acceptance, and member role management
+- [x] Invite members to a group room by username (room admin adds the member and hands off the group key)
+- [ ] Member role management and invite acceptance
+- [x] Room creation with the owner automatically provisioning the room's encryption key
 
 ## Commands
 

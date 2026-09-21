@@ -592,6 +592,37 @@
       </div>
     </dialog>
 
+    <!-- Invite Members Dialog -->
+    <dialog class="modal" id="invite-dialog">
+      <div class="modal-content">
+        <header class="modal-head">
+          <h3>Invite members</h3>
+          <button class="icon-btn" id="invite-dialog-close" title="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </header>
+
+        <form class="modal-form" id="invite-form">
+          <div class="field">
+            <label for="invite-username">Find someone by username</label>
+            <div class="input-wrap">
+              <input id="invite-username" type="text" name="username" maxlength="40" placeholder="@handle" autocomplete="off" autocapitalize="off" spellcheck="false" required />
+            </div>
+          </div>
+          <p class="dm-hint">Members you add can read everything in this room. Invites are end-to-end encrypted.</p>
+
+          <ul class="dm-results" id="invite-results"></ul>
+
+          <div class="error-box" id="invite-error" role="alert" hidden></div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-ghost" id="invite-cancel">Cancel</button>
+            <button type="submit" class="btn-primary">Search</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
     <!-- Confirm Dialog (reusable: sign out, delete account, etc.) -->
     <dialog class="modal confirm-dialog" id="confirm-dialog">
       <div class="modal-content">

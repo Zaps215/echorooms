@@ -338,8 +338,145 @@ function initDmDialog() {
   });
 }
 
+// --- Invite members --------------------------------------------------------
+
+const inviteResultsMap = new Map();
+const invitedSet = new Set();
+
+function currentRoom() {
+  return state.rooms.find((r) => r.id === state.currentRoomId) || null;
+}
+
+function openInviteDialog() {
+  hideError(dom.inviteError);
+  closeSidebar();
+  closeInfo();
+  dom.inviteForm.reset();
+  dom.inviteResults.innerHTML = "";
+  inviteResultsMap.clear();
+  invitedSet.clear();
+  dom.inviteDialog.showModal();
+  dom.inviteUsername.focus();
+}
+
+function inviteResultHtml(user, alreadyAdded) {
+  const name = user.display_name || user.username;
+  return `
+    <li>
+      <button type="button" class="dm-result" data-user-id="${user.id}" ${alreadyAdded ? "disabled" : ""}>
+        <span class="member-avatar" style="background:${avatarColor(name)}">${escapeHtml(
+    name.charAt(0).toUpperCase()
+  )}</span>
+        <span class="member-name">${escapeHtml(name)}</span>
+        <span class="dm-handle">@${escapeHtml(user.username || "")}</span>
+        <span class="dm-added">${alreadyAdded ? "✓ Added" : ""}</span>
+      </button>
+    </li>`;
+}
+
+async function inviteUser(user) {
+  const room = currentRoom();
+  const roomId = state.currentRoomId;
+  if (!roomId || !room) return;
+
+  const { error: addError } = await supabase.rpc("add_room_member", {
+    room_id: roomId,
+    other_user_id: user.id,
+  });
+
+  if (addError) {
+    showError(dom.inviteError, "Could not add that member. Only room admins can invite.");
+    return;
+  }
+
+  await shareRoomKey(roomId, user.id, user.public_key);
+  invitedSet.add(user.id);
+  renderRoomInfo(room);
+  renderInviteResults(dom.inviteUsername.value.trim());
+}
+
+function renderInviteResults(query) {
+  const others = [...inviteResultsMap.values()].filter(
+    (p) => p.id !== state.currentUser.id
+  );
+  if (!others.length) {
+    dom.inviteResults.innerHTML = '<li class="dm-none">No users found with that username.</li>';
+    dom.inviteResults.classList.remove("is-hidden");
+    return;
+  }
+  dom.inviteResults.innerHTML = others
+    .map((p) => inviteResultHtml(p, invitedSet.has(p.id)))
+    .join("");
+  dom.inviteResults.classList.remove("is-hidden");
+}
+
+function initInviteDialog() {
+  dom.btnInvite?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openInviteDialog();
+  });
+
+  dom.inviteDialogClose?.addEventListener("click", () => dom.inviteDialog.close());
+  dom.inviteCancel?.addEventListener("click", () => dom.inviteDialog.close());
+
+  dom.inviteResults?.addEventListener("click", (e) => {
+    const item = e.target.closest("[data-user-id]");
+    if (!item || item.disabled) return;
+    const user = inviteResultsMap.get(item.dataset.userId);
+    if (user) inviteUser(user);
+  });
+
+  dom.inviteForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!supabase || !state.currentUser || !state.currentRoomId) return;
+
+    const query = dom.inviteUsername.value.trim();
+    if (!query) {
+      showError(dom.inviteError, "Enter a username to search.");
+      return;
+    }
+
+    const submitBtn = dom.findPrimaryButton(dom.inviteForm);
+    submitBtn.disabled = true;
+    hideError(dom.inviteError);
+    dom.inviteResults.innerHTML = "";
+
+    try {
+      const result = await supabase
+        .from("profiles")
+        .select("id, username, display_name, public_key")
+        .not("username", "is", null)
+        .ilike("username", `%${query}%`)
+        .order("username")
+        .limit(8);
+
+      if (result.error) {
+        showError(dom.inviteError, "Could not search right now. Try again.");
+        return;
+      }
+
+      const already = new Set(
+        (await supabase.from("room_members").select("user_id").eq("room_id", state.currentRoomId))
+          .data?.map((m) => m.user_id) || []
+      );
+
+      inviteResultsMap.clear();
+      (result.data || [])
+        .filter((p) => p.id !== state.currentUser.id && !already.has(p.id))
+        .forEach((p) => inviteResultsMap.set(p.id, p));
+
+      renderInviteResults(query);
+    } catch (error) {
+      showError(dom.inviteError, "Could not search right now. Try again.");
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+}
+
 export function initRooms() {
   initRoomDialog();
   initDmDialog();
+  initInviteDialog();
   initSidebar();
 }
