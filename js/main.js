@@ -11,11 +11,12 @@ import { supabase, isSupabaseConfigured } from "./core/supabase.js";
 import { state, resetAppState } from "./core/state.js";
 import { switchAuthForm, showAppShell, showAuthShell, initNavigation } from "./core/navigation.js";
 import { initConfirm } from "./core/confirm.js";
+import { ensureIdentity, resetKeyring } from "./core/keyring.js";
 
 import { initAuth } from "./features/auth.js";
 import { initOtp } from "./features/otp.js";
 import { initRooms, loadRooms } from "./features/rooms.js";
-import { initProfile, loadProfile } from "./features/profile.js";
+import { initProfile, loadProfile, hasUsername, openUsernameOnboarding } from "./features/profile.js";
 import { initChat, closeRoom } from "./features/chat.js";
 import { initHome, enterHome } from "./features/home.js";
 
@@ -33,9 +34,12 @@ initHome();
 async function enterApp(user) {
   state.currentUser = user;
   showAppShell();
+  await ensureIdentity();
   const roomCount = await loadRooms();
-  loadProfile();
-  // Show the first-run homepage when the user has no rooms to open.
+  await loadProfile();
+  if (!hasUsername()) {
+    openUsernameOnboarding();
+  }
   if (roomCount === 0) {
     enterHome();
   }
@@ -44,6 +48,7 @@ async function enterApp(user) {
 function exitToAuth() {
   closeRoom();
   resetAppState();
+  resetKeyring();
   showAuthShell();
 }
 

@@ -35,7 +35,7 @@ Start the local frontend:
 npm run dev
 ```
 
-Open the URL printed by Vite. The Shared Foundation, Identity Service, Room Service, and Messaging Service slices are implemented, including OTP email verification, room creation and listing, and realtime text messaging. Room invitations and the reaction/media services are next.
+Open the URL printed by Vite. The Shared Foundation, Identity Service, Room Service, and Messaging Service slices are implemented, including OTP email verification, room creation and listing, realtime text messaging with end-to-end encryption, @username handles and direct messages. Room invitations and the reaction/media services are next.
 
 ## Current Checkpoint
 
@@ -57,6 +57,9 @@ Open the URL printed by Vite. The Shared Foundation, Identity Service, Room Serv
 - [x] Draft Terms &amp; Conditions and Privacy Policy pages linked from the signup form
 - [x] Mobile-responsive app shell: off-canvas room-list and info-panel drawers, hamburger menu, shared tap-anywhere/Escape close, safe-area insets, 16px inputs (no iOS focus-zoom), and a fixed bug where the info panel never appeared previously
 - [x] Realtime messaging: paginated history, day-grouped stream, optimistic sends with retry, edit and soft-delete, and live updates per room
+- [x] Required unique @username claimed on first login (onboarding dialog); used for sender labels, mention autocomplete, and direct-room search by username
+- [x] Hybrid end-to-end encryption: per-room AES-GCM keys wrapped per member with RSA-OAEP identities; email/password keys recoverable via PBKDF2, social logins device-bound; edits/deletes re-encrypt
+- [x] Direct rooms: search a user by username and open a private encrypted conversation
 - [ ] Room invitations, acceptance, and member role management
 
 ## Commands
@@ -71,7 +74,7 @@ Open the URL printed by Vite. The Shared Foundation, Identity Service, Room Serv
 - `public/` contains static pages served as-is (Terms &amp; Conditions and Privacy Policy).
 - `css/` contains the visual foundation.
 - `js/main.js` is the entry point: it wires the auth-session lifecycle and bootstraps each feature module.
-- `js/core/` holds shared concerns — the DOM registry (`dom.js`), app state (`state.js`), Supabase access (`supabase.js`), and reusable helpers (`utils.js`, `navigation.js`).
+- `js/core/` holds shared concerns — the DOM registry (`dom.js`), app state (`state.js`), Supabase access (`supabase.js`), and reusable helpers (`utils.js`, `navigation.js`), plus the E2EE primitives (`crypto.js`) and identity/keyring manager (`keyring.js`).
 - `js/features/` holds feature logic — auth (`auth.js`), email OTP verification (`otp.js`), rooms (`rooms.js`), profile/account (`profile.js`), chat (`chat.js`), and the first-run homepage (`home.js`).
 - `js/supabase-client.js` initializes the Supabase client.
 - `supabase/migrations/` contains database migrations and RLS policies.

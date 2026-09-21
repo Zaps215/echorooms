@@ -11,17 +11,27 @@ import { supabase } from "../core/supabase.js";
 import { escapeHtml } from "../core/utils.js";
 import { closeInfo, openSidebar } from "../core/navigation.js";
 import { showConfirm } from "../core/confirm.js";
+import { getRoomKey, ensureRoomKey, canManageRoom, shareMissingKeys } from "../core/keyring.js";
+import * as crypto from "../core/crypto.js";
 
 const PAGE_SIZE = 30;
 
 const MESSAGE_COLUMNS =
-  "id, room_id, sender_id, body, reply_to_id, edited_at, deleted_at, created_at, profiles(display_name, username)";
+  "id, room_id, sender_id, body, iv, ciphertext, reply_to_id, edited_at, deleted_at, created_at, profiles(display_name, username)";
 
 // Per-room cache of userId -> profile, used to label realtime messages.
 const memberCache = new Map();
 
 let channel = null;
 let editingId = null;
+let activeRoomKey = null;
+
+// Ids of messages we just sent; realtime echoes for these are ignored because
+// the insert response already rendered them.
+const recentSends = new Set();
+
+const LOCKED_TEXT = "Message is encrypted and can't be decrypted on this device.";
+const NO_KEY_TEXT = "Waiting for the room owner to share the encryption key.";
 
 // --- Data access -----------------------------------------------------------
 
@@ -31,12 +41,40 @@ function normalize(row) {
     room_id: row.room_id,
     sender_id: row.sender_id,
     body: row.body,
+    iv: row.iv,
+    ciphertext: row.ciphertext,
     reply_to_id: row.reply_to_id,
     edited_at: row.edited_at,
     deleted_at: row.deleted_at,
     created_at: row.created_at,
     sender: row.profiles || row.sender || null,
   };
+}
+
+/** Decrypts a message's body in place using the active room key. */
+async function decryptMessageContent(msg) {
+  if (msg.deleted_at) return;
+  if (!msg.iv || !msg.ciphertext) return; // legacy plaintext message
+  if (!activeRoomKey) {
+    msg.body = NO_KEY_TEXT;
+    return;
+  }
+  try {
+    msg.body = await crypto.decryptMessage(activeRoomKey, msg.iv, msg.ciphertext);
+  } catch (error) {
+    msg.body = LOCKED_TEXT;
+  }
+}
+
+function setComposerNotice(text) {
+  if (!dom.composerNotice) return;
+  if (text) {
+    dom.composerNotice.textContent = text;
+    dom.composerNotice.classList.remove("is-hidden");
+  } else {
+    dom.composerNotice.classList.add("is-hidden");
+    dom.composerNotice.textContent = "";
+  }
 }
 
 async function listMessages(roomId, before) {
@@ -76,12 +114,29 @@ async function loadMembers(roomId) {
 }
 
 async function sendMessage(roomId, body) {
+  let key = activeRoomKey;
+  if (!key) {
+    key = await ensureRoomKey(roomId);
+    activeRoomKey = key;
+    if (!key) {
+      setComposerNotice(
+        (await canManageRoom(roomId))
+          ? "Your encryption key couldn't be created. Try again."
+          : NO_KEY_TEXT
+      );
+      return;
+    }
+  }
+
+  const encrypted = await crypto.encryptMessage(key, body);
   const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const pending = {
     id: pendingId,
     room_id: roomId,
     sender_id: state.currentUser?.id,
     body,
+    iv: null,
+    ciphertext: null,
     reply_to_id: null,
     edited_at: null,
     deleted_at: null,
@@ -93,28 +148,37 @@ async function sendMessage(roomId, body) {
   state.messages.push(pending);
   renderMessages({ stickToBottom: true });
 
-  const { data, error } = await supabase
-    .from("messages")
-    .insert({ room_id: roomId, sender_id: state.currentUser.id, body })
-    .select(MESSAGE_COLUMNS)
-    .single();
+  if (key) {
+    const { data, error } = await supabase
+      .from("messages")
+      .insert({ room_id: roomId, sender_id: state.currentUser.id, iv: encrypted.iv, ciphertext: encrypted.ct })
+      .select(MESSAGE_COLUMNS)
+      .single();
 
-  if (error || !data) {
-    const target = state.messages.find((m) => m.id === pendingId);
-    if (target) target.status = "failed";
+    if (error || !data) {
+      const target = state.messages.find((m) => m.id === pendingId);
+      if (target) target.status = "failed";
+      renderMessages({ stickToBottom: true });
+      return;
+    }
+
+    const index = state.messages.findIndex((m) => m.id === pendingId);
+    const row = normalize(data);
+    row.body = body; // keep the plaintext we just computed
+    recentSends.add(row.id);
+    if (index !== -1) state.messages.splice(index, 1, row);
     renderMessages({ stickToBottom: true });
-    return;
   }
-
-  const index = state.messages.findIndex((m) => m.id === pendingId);
-  if (index !== -1) state.messages.splice(index, 1, normalize(data));
-  renderMessages({ stickToBottom: true });
 }
 
 async function editMessage(messageId, body) {
+  if (!activeRoomKey) {
+    return { error: { message: "no key" } };
+  }
+  const encrypted = await crypto.encryptMessage(activeRoomKey, body);
   return supabase
     .from("messages")
-    .update({ body, edited_at: new Date().toISOString() })
+    .update({ body: null, iv: encrypted.iv, ciphertext: encrypted.ct, edited_at: new Date().toISOString() })
     .eq("id", messageId);
 }
 
@@ -156,16 +220,21 @@ function unsubscribe() {
   channel = null;
 }
 
-function handleInsert(row) {
+async function handleInsert(row) {
   if (state.currentRoomId !== row.room_id) return;
-  if (state.messages.some((m) => m.id === row.id)) return;
+  if (recentSends.has(row.id)) {
+    recentSends.delete(row.id);
+    return;
+  }
 
   const msg = normalize(row);
+  await decryptMessageContent(msg);
   const pendingIndex = state.messages.findIndex(
-    (m) => m.status === "sending" && m.sender_id === row.sender_id && m.body === row.body
+    (m) => m.status === "sending" && m.sender_id === row.sender_id && !m.ciphertext
   );
 
   if (pendingIndex !== -1) {
+    msg.body = msg.body || state.messages[pendingIndex].body;
     state.messages.splice(pendingIndex, 1, msg);
   } else {
     state.messages.push(msg);
@@ -175,10 +244,16 @@ function handleInsert(row) {
   renderMessages({ stickToBottom: true });
 }
 
-function handleUpdate(row) {
+async function handleUpdate(row) {
   const index = state.messages.findIndex((m) => m.id === row.id);
   if (index === -1) return;
-  state.messages[index] = { ...state.messages[index], ...normalize(row) };
+  const plain = state.messages[index].body;
+  const updated = normalize(row);
+  if (updated.iv && updated.ciphertext) {
+    await decryptMessageContent(updated);
+    if (updated.body === NO_KEY_TEXT && plain) updated.body = plain;
+  }
+  state.messages[index] = updated;
   renderMessages();
 }
 
@@ -217,7 +292,23 @@ async function ensureSenderName(msg, roomId) {
 function senderName(msg) {
   const profile =
     msg.sender || memberCache.get(state.currentRoomId)?.get(msg.sender_id) || {};
-  return profile.display_name || profile.username || "Member";
+  if (profile.username) return `@${profile.username}`;
+  return profile.display_name || "Member";
+}
+
+/** Highlights @usernames that match known room members. */
+function renderBody(text) {
+  const escaped = escapeHtml(text || "");
+  const members = memberCache.get(state.currentRoomId);
+  if (!members) return escaped;
+  return escaped.replace(/@([A-Za-z0-9_.]+)/g, (match, handle) => {
+    for (const profile of members.values()) {
+      if (profile && profile.username === handle) {
+        return `<span class="mention">${match}</span>`;
+      }
+    }
+    return match;
+  });
 }
 
 function formatTime(iso) {
@@ -247,7 +338,7 @@ function messageHtml(msg) {
 
   const text = deleted
     ? '<em class="msg-deleted">This message was deleted</em>'
-    : escapeHtml(msg.body || "");
+    : renderBody(msg.body);
 
   const sender = !own && !deleted
     ? `<span class="sender">${escapeHtml(senderName(msg))}</span>`
@@ -482,6 +573,7 @@ async function loadOlderMessages() {
   const older = await listMessages(roomId, oldest.created_at);
   if (state.currentRoomId !== roomId) return;
 
+  for (const msg of older) await decryptMessageContent(msg);
   if (older.length < PAGE_SIZE) state.hasMoreMessages = false;
   state.messages = older.concat(state.messages);
   state.messagesLoading = false;
@@ -501,17 +593,33 @@ export async function openRoom(roomId) {
   state.hasMoreMessages = true;
 
   renderMessages();
+  setComposerNotice("");
 
   await loadMembers(roomId);
+
+  const isAdmin = await canManageRoom(roomId);
+  if (isAdmin) {
+    activeRoomKey = await ensureRoomKey(roomId);
+    await shareMissingKeys(roomId);
+  } else {
+    activeRoomKey = await getRoomKey(roomId);
+  }
+
   const messages = await listMessages(roomId);
 
   // The user may have switched rooms while history was loading.
   if (state.currentRoomId !== roomId) return;
 
+  for (const msg of messages) await decryptMessageContent(msg);
+
   state.messages = messages;
   state.hasMoreMessages = messages.length === PAGE_SIZE;
   state.messagesLoading = false;
   renderMessages({ stickToBottom: true });
+
+  if (!activeRoomKey) {
+    setComposerNotice(isAdmin ? "No encryption key is available for this room." : NO_KEY_TEXT);
+  }
 
   subscribeToRoom(roomId);
 }
@@ -519,9 +627,105 @@ export async function openRoom(roomId) {
 export function closeRoom() {
   unsubscribe();
   editingId = null;
+  activeRoomKey = null;
   state.messages = [];
   state.currentRoomId = null;
+  hideMentionMenu();
+  setComposerNotice("");
 }
+
+// --- Mention autocomplete --------------------------------------------------
+
+function currentMention() {
+  const el = dom.composerInput;
+  if (!el) return null;
+  const before = el.value.slice(0, el.selectionStart);
+  const match = before.match(/(^|\s)@([A-Za-z0-9_.]*)$/);
+  if (!match) return null;
+  return { query: match[2], start: el.selectionStart - match[2].length - 1 };
+}
+
+function hideMentionMenu() {
+  if (dom.mentionMenu) {
+    dom.mentionMenu.classList.add("is-hidden");
+    dom.mentionMenu.innerHTML = "";
+  }
+}
+
+function refreshMentionMenu() {
+  const el = dom.mentionMenu;
+  if (!el) {
+    return;
+  }
+  const mention = currentMention();
+  if (!mention) {
+    hideMentionMenu();
+    return;
+  }
+
+  const members = memberCache.get(state.currentRoomId);
+  const matches = [];
+  if (members) {
+    for (const profile of members.values()) {
+      if (profile && profile.username && profile.username.toLowerCase().includes(mention.query.toLowerCase())) {
+        if (state.currentUser && profile.id === state.currentUser.id) continue;
+        matches.push(profile);
+        if (matches.length >= 6) break;
+      }
+    }
+  }
+
+  if (!matches.length) {
+    hideMentionMenu();
+    return;
+  }
+
+  el.innerHTML = matches
+    .map(
+      (p) =>
+        `<button type="button" class="mention-item" data-username="${escapeHtml(p.username)}">@${escapeHtml(
+          p.username
+        )} <small>${escapeHtml(p.display_name || "")}</small></button>`
+    )
+    .join("");
+  el.classList.remove("is-hidden");
+}
+
+function insertMention(username) {
+  const el = dom.composerInput;
+  const mention = currentMention();
+  if (!mention || !el) return;
+  const after = el.value.slice(el.selectionStart);
+  el.value = `${el.value.slice(0, mention.start)}@${username} ${after}`;
+  const pos = mention.start + 1 + username.length + 1;
+  el.setSelectionRange(pos, pos);
+  autoGrow(el);
+  hideMentionMenu();
+  el.focus();
+}
+
+function initMentionMenu() {
+  dom.mentionMenu?.addEventListener("click", (e) => {
+    const item = e.target.closest("[data-username]");
+    if (!item) return;
+    e.preventDefault();
+    insertMention(item.dataset.username);
+  });
+  dom.composerInput?.addEventListener("input", () => {
+    autoGrow(dom.composerInput);
+    refreshMentionMenu();
+  });
+  dom.composerInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideMentionMenu();
+    if (e.key === "Enter") hideMentionMenu();
+  });
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-username], #composer-input")) return;
+    hideMentionMenu();
+  });
+}
+
+// --- Composer --------------------------------------------------------------
 
 function initComposer() {
   const send = () => {
@@ -531,6 +735,7 @@ function initComposer() {
 
     dom.composerInput.value = "";
     autoGrow(dom.composerInput);
+    hideMentionMenu();
     sendMessage(roomId, body);
   };
 
@@ -541,7 +746,6 @@ function initComposer() {
       send();
     }
   });
-  dom.composerInput?.addEventListener("input", () => autoGrow(dom.composerInput));
 
   dom.messagesEl?.addEventListener("scroll", () => {
     if (dom.messagesEl.scrollTop > 60) return;
@@ -573,5 +777,6 @@ function initMobileBack() {
 
 export function initChat() {
   initComposer();
+  initMentionMenu();
   initMobileBack();
 }

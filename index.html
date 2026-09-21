@@ -249,6 +249,9 @@
             </svg>
           </div>
           <span class="side-title">EchoRooms</span>
+          <button class="icon-btn new-room-btn" id="btn-new-dm" title="New message">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </button>
           <button class="icon-btn new-room-btn" id="btn-new-room" title="New room">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
@@ -371,7 +374,9 @@
         <div class="messages" id="messages"></div>
 
         <footer class="composer">
+          <p class="composer-notice is-hidden" id="composer-notice"></p>
           <div class="composer-inner">
+            <div class="mention-menu is-hidden" id="mention-menu" role="listbox"></div>
             <textarea id="composer-input" rows="1" placeholder="Message the room…"></textarea>
             <button class="send-btn" id="btn-send" title="Send">
               <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -524,6 +529,64 @@
           <div class="modal-actions">
             <button type="button" class="btn-ghost" id="profile-cancel">Cancel</button>
             <button type="submit" class="btn-primary">Save profile</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <!-- New Message (DM) Dialog -->
+    <dialog class="modal" id="dm-dialog">
+      <div class="modal-content">
+        <header class="modal-head">
+          <h3>New message</h3>
+          <button class="icon-btn" id="dm-dialog-close" title="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </header>
+
+        <form class="modal-form" id="dm-form">
+          <div class="field">
+            <label for="dm-username">Find someone by username</label>
+            <div class="input-wrap">
+              <input id="dm-username" type="text" name="username" maxlength="40" placeholder="@handle" autocomplete="off" autocapitalize="off" spellcheck="false" required />
+            </div>
+          </div>
+          <p class="dm-hint">Your message history is end-to-end encrypted; only members you message can read it.</p>
+
+          <ul class="dm-results" id="dm-results"></ul>
+
+          <div class="error-box" id="dm-error" role="alert" hidden></div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-ghost" id="dm-cancel">Cancel</button>
+            <button type="submit" class="btn-primary">Search</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <!-- Username Onboarding Dialog (first run) -->
+    <dialog class="modal" id="username-dialog">
+      <div class="modal-content">
+        <header class="modal-head">
+          <h3>Choose your handle</h3>
+        </header>
+
+        <form class="modal-form" id="username-form">
+          <p class="confirm-message">
+            Pick a unique <strong>@username</strong>. People use it to find you and start an
+            end-to-end encrypted conversation. It can't be changed once set.
+          </p>
+
+          <div class="field">
+            <label for="username-input">Username</label>
+            <input id="username-input" type="text" name="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9_.]+" placeholder="@handle" autocomplete="off" autocapitalize="off" spellcheck="false" required />
+          </div>
+
+          <div class="error-box" id="username-error" role="alert" hidden></div>
+
+          <div class="modal-actions">
+            <button type="submit" class="btn-primary">Set username</button>
           </div>
         </form>
       </div>

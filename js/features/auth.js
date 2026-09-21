@@ -9,6 +9,7 @@ import { supabase, isSupabaseConfigured } from "../core/supabase.js";
 import { showError, hideError, showAuthError, updatePasswordStrength } from "../core/utils.js";
 import { switchAuthForm, showAppShell, initPasswordToggle } from "../core/navigation.js";
 import { startSignupOtp, startResetOtp } from "./otp.js";
+import { setPendingPassword, rekeyIdentity } from "../core/keyring.js";
 
 function bindSubmit(form, errorEl, handler) {
   if (!form) return;
@@ -27,6 +28,8 @@ async function submitSignin(form, errorEl) {
   submitBtn.disabled = true;
   hideError(errorEl);
   try {
+    // The password must reach the keyring so the identity can be unwrapped.
+    setPendingPassword(dom.signinPassword.value);
     const result = await supabase.auth.signInWithPassword({
       email: dom.signinEmail.value.trim(),
       password: dom.signinPassword.value,
@@ -122,12 +125,15 @@ async function submitRecovery(form, errorEl) {
   hideError(errorEl);
 
   try {
+    setPendingPassword(dom.recoveryPassword.value);
     const result = await supabase.auth.updateUser({ password: dom.recoveryPassword.value });
     if (result.error) {
       showError(errorEl, "Could not update password. Please request a new reset link.");
       submitBtn.disabled = false;
       return;
     }
+    // Re-wrap the identity key under the new password.
+    await rekeyIdentity(dom.recoveryPassword.value);
     form.reset();
     showAppShell();
   } catch (error) {

@@ -936,3 +936,91 @@ button, input, textarea { touch-action: manipulation; }
   .panel-scroll { padding: 24px 26px 22px; }
   .panel-scroll .center-logo { margin-bottom: 22px; }
 }
+
+/* --- End-to-end encryption & mentions --- */
+
+.composer-notice {
+  margin: 0 16px 6px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--bg, #f1f5f9);
+  color: var(--muted, #64748b);
+  font-size: 12px;
+  text-align: center;
+}
+
+.mention-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 12px;
+  right: 12px;
+  z-index: 30;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--panel, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  padding: 4px;
+}
+.composer-inner { position: relative; }
+
+.mention-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text, #0f172a);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.mention-item:hover { background: var(--bg, #f1f5f9); }
+.mention-item small { color: var(--muted, #64748b); }
+
+.mention { color: var(--accent, #2563eb); font-weight: 600; }
+
+/* DM dialog */
+.dm-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--muted, #64748b);
+}
+.dm-results {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.dm-results.is-hidden { display: none; }
+.dm-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line, #eef2f7);
+  background: transparent;
+  color: var(--text, #0f172a);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.dm-result:last-child { border-bottom: 0; }
+.dm-result:hover { background: var(--bg, #f1f5f9); }
+.dm-result .dm-handle { margin-left: auto; color: var(--muted, #64748b); font-size: 12px; }
+.dm-none {
+  padding: 14px;
+  color: var(--muted, #64748b);
+  font-size: 13px;
+  text-align: center;
+}

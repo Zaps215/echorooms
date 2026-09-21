@@ -10,6 +10,7 @@ import { otpState, state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
 import { showError, hideError, showAuthError } from "../core/utils.js";
 import { switchAuthForm, showAppShell } from "../core/navigation.js";
+import { setPendingPassword } from "../core/keyring.js";
 
 const OTP_RESEND_SECONDS = 30;
 
@@ -80,6 +81,12 @@ async function verifyOtp(token) {
   dom.otpBoxes.querySelectorAll("input").forEach((b) => (b.disabled = true));
 
   try {
+    // Sign-up creates the session below; stage the password so the identity
+    // keypair is wrapped (and recoverable) from the very first login.
+    if (otpState.purpose === "signup") {
+      setPendingPassword(otpState.pendingPassword);
+    }
+
     const result = await supabase.auth.verifyOtp({
       email: otpState.email,
       token,
@@ -87,6 +94,7 @@ async function verifyOtp(token) {
     });
 
     if (result.error) {
+      if (otpState.purpose === "signup") setPendingPassword(null);
       showError(dom.otpError, "That code isn't right. Check it and try again.");
       resetOtpBoxes();
       return;

@@ -10,6 +10,7 @@ import { supabase } from "../core/supabase.js";
 import { showError, hideError, escapeHtml, avatarColor } from "../core/utils.js";
 import { showRoomChat, closeSidebar, closeInfo } from "../core/navigation.js";
 import { openRoom } from "./chat.js";
+import { getIdentity, createRoomKey, getRoomKey, shareRoomKey } from "../core/keyring.js";
 
 const ROOM_PALETTE = [
   "#2563eb",
@@ -173,9 +174,15 @@ function initRoomDialog() {
         return;
       }
 
-      state.rooms.unshift(result.data[0]);
+      const room = result.data[0];
+      // The creator provisions the room's AES key up front.
+      await createRoomKey(room.id, [
+        { id: state.currentUser.id, public_key: getIdentity()?.publicKeyB64 },
+      ]);
+
+      state.rooms.unshift(room);
       renderRooms();
-      selectRoom(result.data[0].id);
+      selectRoom(room.id);
       dom.roomDialog.close();
       dom.roomForm.reset();
     } catch (error) {
@@ -198,7 +205,141 @@ function initSidebar() {
   });
 }
 
+// --- Direct messages -------------------------------------------------------
+
+// Cache of the latest DM search results so clicks can hand off full rows.
+const dmResultsMap = new Map();
+
+function openDmDialog() {
+  hideError(dom.dmError);
+  closeSidebar();
+  closeInfo();
+  dom.dmForm.reset();
+  dom.dmResults.innerHTML = "";
+  dmResultsMap.clear();
+  dom.dmDialog.showModal();
+  dom.dmUsername.focus();
+}
+
+function dmResultHtml(user) {
+  const name = user.display_name || user.username;
+  return `
+    <li>
+      <button type="button" class="dm-result" data-user-id="${user.id}" data-username="${escapeHtml(
+    user.username || ""
+  )}" data-name="${escapeHtml(name)}">
+        <span class="member-avatar" style="background:${avatarColor(name)}">${escapeHtml(
+    name.charAt(0).toUpperCase()
+  )}</span>
+        <span class="member-name">${escapeHtml(name)}</span>
+        <span class="dm-handle">@${escapeHtml(user.username || "")}</span>
+      </button>
+    </li>`;
+}
+
+async function startDm(user) {
+  const result = await supabase.rpc("create_direct_room", {
+    other_user_id: user.id,
+  });
+
+  if (result.error || !result.data || !result.data[0]) {
+    showError(dom.dmError, "Could not start that conversation. Try again.");
+    return;
+  }
+
+  const room = result.data[0];
+
+  const existingKey = await getRoomKey(room.id).catch(() => null);
+  if (existingKey) {
+    // Reused direct room: only top up the other member's copy if missing.
+    await shareRoomKey(room.id, user.id, user.public_key);
+  } else {
+    // Brand-new direct room: provision a key and share it with both members.
+    await createRoomKey(room.id, [
+      { id: state.currentUser.id, public_key: getIdentity()?.publicKeyB64 },
+      { id: user.id, public_key: user.public_key },
+    ]);
+  }
+
+  if (!state.rooms.some((r) => r.id === room.id)) {
+    state.rooms.unshift(room);
+  }
+  renderRooms();
+  selectRoom(room.id);
+  dom.dmDialog.close();
+}
+
+function initDmDialog() {
+  dom.btnNewDm?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openDmDialog();
+  });
+
+  dom.dmDialogClose?.addEventListener("click", () => dom.dmDialog.close());
+  dom.dmCancel?.addEventListener("click", () => dom.dmDialog.close());
+
+  dom.dmResults?.addEventListener("click", (e) => {
+    const item = e.target.closest("[data-user-id]");
+    if (!item) return;
+    const user = dmResultsMap.get(item.dataset.userId);
+    if (!user) return;
+    startDm(user).then(() => (dom.dmResults.innerHTML = ""));
+  });
+
+  dom.dmForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!supabase || !state.currentUser) return;
+
+    const submitBtn = dom.findPrimaryButton(dom.dmForm);
+    submitBtn.disabled = true;
+    hideError(dom.dmError);
+    dom.dmResults.innerHTML = "";
+
+    try {
+      const query = dom.dmUsername.value.trim();
+      if (!query) {
+        showError(dom.dmError, "Enter a username to search.");
+        submitBtn.disabled = false;
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, public_key")
+        .not("username", "is", null)
+        .ilike("username", `%${query}%`)
+        .order("username")
+        .limit(8);
+
+      if (error) {
+        showError(dom.dmError, "Could not search right now. Try again.");
+        submitBtn.disabled = false;
+        return;
+      }
+
+      const others = (data || []).filter((p) => p.id !== state.currentUser.id);
+      if (!others.length) {
+        dom.dmResults.innerHTML =
+          '<li class="dm-none">No users found with that username.</li>';
+        dom.dmResults.classList.remove("is-hidden");
+        submitBtn.disabled = false;
+        return;
+      }
+
+      dmResultsMap.clear();
+      others.forEach((p) => dmResultsMap.set(p.id, p));
+      dom.dmResults.innerHTML = others.map(dmResultHtml).join("");
+      dom.dmResults.classList.remove("is-hidden");
+    } catch (error) {
+      showError(dom.dmError, "Could not search right now. Try again.");
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+}
+
 export function initRooms() {
   initRoomDialog();
+  initDmDialog();
   initSidebar();
 }

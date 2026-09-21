@@ -92,7 +92,6 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 - Temporary disappearing rooms
 - Calendar event objects
 - Voice messages
-- End-to-end encryption
 - Public communities
 - Integrations with external calendars and task managers
 - Native mobile applications
@@ -103,8 +102,11 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 - Building a social media feed
 - Supporting video calls
 - Supporting public discovery of private rooms
-- Building custom encryption before the product workflow is validated
 - Adding multiple AI providers or complex agent workflows
+
+> **Note:** Hybrid end-to-end encryption (per-room AES keys wrapped per member; PBKDF2 for
+> email accounts, device-bound for social logins) is implemented. This trades away
+> server-side search, summarization, and AI assistants on message bodies by design.
 
 ---
 

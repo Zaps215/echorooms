@@ -65,6 +65,7 @@ export const roomSearch = query("room-search");
 export const meAvatar = query("me-avatar");
 export const meName = query("me-name");
 export const btnNewRoom = query("btn-new-room");
+export const btnNewDm = query("btn-new-dm");
 export const btnLogout = query("btn-logout");
 export const btnOpenProfile = query("btn-open-profile");
 
@@ -73,6 +74,8 @@ export const chatActive = query("chat-active");
 export const chatTitle = query("chat-title");
 export const chatSubtitle = query("chat-subtitle");
 export const composerInput = query("composer-input");
+export const composerNotice = query("composer-notice");
+export const mentionMenu = query("mention-menu");
 export const messagesEl = query("messages");
 export const btnSend = query("btn-send");
 export const btnInfo = query("btn-info");
@@ -123,6 +126,19 @@ export const profileHeadTitle = query("profile-head-title");
 export const profileHandleEl = query("profile-handle");
 export const profileStatusText = query("profile-status-text");
 export const profilePageError = query("profile-page-error");
+
+export const dmDialog = query("dm-dialog");
+export const dmForm = query("dm-form");
+export const dmUsername = query("dm-username");
+export const dmResults = query("dm-results");
+export const dmError = query("dm-error");
+export const dmDialogClose = query("dm-dialog-close");
+export const dmCancel = query("dm-cancel");
+
+export const usernameDialog = query("username-dialog");
+export const usernameForm = query("username-form");
+export const usernameInput = query("username-input");
+export const usernameError = query("username-error");
 
 export const confirmDialog = query("confirm-dialog");
 export const confirmTitle = query("confirm-title");

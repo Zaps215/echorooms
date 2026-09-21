@@ -23,6 +23,26 @@ import { showConfirm } from "../core/confirm.js";
 
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
+let currentProfile = null;
+
+/** True when the signed-in user has chosen a unique @username. */
+export function hasUsername() {
+  return !!(currentProfile && currentProfile.username);
+}
+
+function getCurrentUsername() {
+  return (currentProfile && currentProfile.username) || "";
+}
+
+/** Opens the first-run dialog that asks the user to claim a @username. */
+export function openUsernameOnboarding() {
+  if (!dom.usernameDialog || dom.usernameDialog.open) return;
+  hideError(dom.usernameError);
+  dom.usernameForm.reset();
+  dom.usernameDialog.showModal();
+  dom.usernameInput.focus();
+}
+
 /** Loads the signed-in user's profile into the footer, profile page, and edit form. */
 export async function loadProfile() {
   if (!supabase) return;
@@ -36,6 +56,8 @@ export async function loadProfile() {
     .select("display_name, username, status_text")
     .eq("id", user.id)
     .single();
+
+  currentProfile = data || currentProfile;
 
   const displayName = data?.display_name || user.user_metadata?.display_name || "User";
 
@@ -54,10 +76,12 @@ export async function loadProfile() {
     setUserAvatar(displayName, dom.profileAvatarEl);
   }
 
-  // Prefill the edit dialog.
+  // Prefill the edit dialog and lock the username once it has been claimed.
   if (data) {
     dom.profileName.value = data.display_name || "";
     dom.profileUsername.value = data.username || "";
+    dom.profileUsername.placeholder = data.username ? "Already set — cannot change" : "optional";
+    dom.profileUsername.disabled = !!data.username;
     dom.profileStatus.value = data.status_text || "";
   }
 }
@@ -130,16 +154,22 @@ function initDialogControls() {
         }
       }
 
+      const nextUsername = dom.profileUsername.value.trim();
+
       const updates = {
         display_name: dom.profileName.value.trim(),
-        username: dom.profileUsername.value.trim() || null,
+        username: nextUsername || getCurrentUsername() || null,
         status_text: dom.profileStatus.value.trim() || null,
       };
       if (avatarPath) updates.avatar_path = avatarPath;
 
       const updateResult = await supabase.from("profiles").update(updates).eq("id", state.currentUser.id);
       if (updateResult.error) {
-        showError(dom.profileError, "Could not save profile. Check that your username is available.");
+        if (updateResult.code === "23505") {
+          showError(dom.profileError, "That username is already taken. Pick another.");
+        } else {
+          showError(dom.profileError, "Could not save profile. Check that your username is available.");
+        }
         submitBtn.disabled = false;
         return;
       }
@@ -147,6 +177,7 @@ function initDialogControls() {
       await loadProfile();
       dom.profileDialog.close();
       dom.profileForm.reset();
+      dom.profileUsername.disabled = false;
     } catch (error) {
       showError(dom.profileError, "Could not save profile. Please try again.");
       submitBtn.disabled = false;
@@ -220,10 +251,50 @@ function initInfoPanel() {
   });
 }
 
+function initUsernameOnboarding() {
+  dom.usernameForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!supabase || !state.currentUser) return;
+
+    const value = dom.usernameInput.value.trim().replace(/\s+/g, "");
+    if (value.length < 3) {
+      showError(dom.usernameError, "Usernames must be at least 3 characters.");
+      return;
+    }
+    if (!/^[A-Za-z0-9_.]+$/.test(value)) {
+      showError(dom.usernameError, "Only letters, numbers, dots, and underscores are allowed.");
+      return;
+    }
+
+    const submitBtn = dom.findPrimaryButton(dom.usernameForm);
+    submitBtn.disabled = true;
+    hideError(dom.usernameError);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ username: value })
+      .eq("id", state.currentUser.id);
+
+    if (error) {
+      if (error.code === "23505") {
+        showError(dom.usernameError, "That username is already taken. Pick another.");
+      } else {
+        showError(dom.usernameError, "Could not save. Please try again.");
+      }
+      submitBtn.disabled = false;
+      return;
+    }
+
+    await loadProfile();
+    dom.usernameDialog.close();
+  });
+}
+
 export function initProfile() {
   initDialogControls();
   initProfilePage();
   initSignOut();
   initAccountDeletion();
   initInfoPanel();
+  initUsernameOnboarding();
 }
