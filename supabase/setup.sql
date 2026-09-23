@@ -76,7 +76,7 @@ security definer set search_path = public
 as $$
 begin
   insert into public.profiles (id, display_name)
-  values (new.id, coalesce(new.raw_user_meta_data ->> 'display_name', ''));
+  values (new.id, left(coalesce(new.raw_user_meta_data ->> 'display_name', ''), 80));
   return new;
 end;
 $$;
@@ -268,6 +268,12 @@ $$;
 -- 0006: Break room_members RLS recursion
 -- ===========================================================================
 
+-- Soft-delete for rooms (dissolve) and per-member chat deletion.
+alter table public.rooms
+  add column if not exists deleted_at timestamptz;
+alter table public.room_members
+  add column if not exists deleted_at timestamptz;
+
 create or replace function public.is_room_member(target_room_id uuid)
 returns boolean
 language sql
@@ -277,9 +283,11 @@ set search_path = public
 as $$
   select exists (
     select 1
-    from public.room_members
-    where room_members.room_id = target_room_id
-      and room_members.user_id = auth.uid()
+    from public.room_members rm
+    join public.rooms r on r.id = rm.room_id
+    where rm.room_id = target_room_id
+      and rm.user_id = auth.uid()
+      and (r.deleted_at is null or r.created_by = auth.uid())
   );
 $$;
 
@@ -480,10 +488,13 @@ begin
   if found is null then
     insert into public.rooms (name, room_type, created_by)
     values (
-      coalesce(
-        nullif(trim((select display_name from public.profiles where id = other_user_id)), ''),
-        (select username from public.profiles where id = other_user_id),
-        'Direct'
+      left(
+        coalesce(
+          nullif(trim((select display_name from public.profiles where id = other_user_id)), ''),
+          (select username from public.profiles where id = other_user_id),
+          'Direct'
+        ),
+        80
       ),
       'direct',
       me
@@ -533,3 +544,196 @@ $$;
 
 revoke all on function public.add_room_member(uuid, uuid, text) from public, anon;
 grant execute on function public.add_room_member(uuid, uuid, text) to authenticated;
+
+-- ===========================================================================
+-- 0009: Dissolve / delete a room or chat, and restore it back
+-- ===========================================================================
+
+-- Dissolve a room for everyone (owner/admin only); restorable by owner/admin.
+create or replace function public.dissolve_room(target_room_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+  if not public.is_room_admin(target_room_id) then
+    raise exception 'Not authorized';
+  end if;
+  update public.rooms
+  set deleted_at = now()
+  where id = target_room_id;
+end;
+$$;
+
+create or replace function public.restore_room(target_room_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+  if not public.is_room_admin(target_room_id) then
+    raise exception 'Not authorized';
+  end if;
+  update public.rooms
+  set deleted_at = null
+  where id = target_room_id;
+end;
+$$;
+
+revoke all on function public.dissolve_room(uuid) from public, anon;
+revoke all on function public.restore_room(uuid) from public, anon;
+grant execute on function public.dissolve_room(uuid) to authenticated;
+grant execute on function public.restore_room(uuid) to authenticated;
+
+-- Delete / restore a chat for the current member only.
+create or replace function public.delete_chat(target_room_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+  if not public.is_room_member(target_room_id) then
+    raise exception 'Not a member';
+  end if;
+  update public.room_members
+  set deleted_at = now()
+  where room_id = target_room_id and user_id = auth.uid();
+end;
+$$;
+
+create or replace function public.restore_chat(target_room_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+  if not public.is_room_member(target_room_id) then
+    raise exception 'Not a member';
+  end if;
+  update public.room_members
+  set deleted_at = null
+  where room_id = target_room_id and user_id = auth.uid();
+end;
+$$;
+
+revoke all on function public.delete_chat(uuid) from public, anon;
+revoke all on function public.restore_chat(uuid) from public, anon;
+grant execute on function public.delete_chat(uuid) to authenticated;
+grant execute on function public.restore_chat(uuid) to authenticated;
+
+-- ===========================================================================
+-- 0010: Reactions and pins (Reaction Service)
+-- ===========================================================================
+
+-- Light conversation interactions. Typing indicators and presence are
+-- intentionally NOT stored here; they ride the realtime channel instead.
+
+create table if not exists public.message_reactions (
+  message_id uuid not null references public.messages(id) on delete cascade,
+  room_id uuid not null references public.rooms(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  emoji text not null check (char_length(emoji) between 1 and 8),
+  created_at timestamptz not null default now(),
+  primary key (message_id, user_id, emoji)
+);
+
+create index if not exists message_reactions_room_idx
+  on public.message_reactions (room_id);
+create index if not exists message_reactions_message_idx
+  on public.message_reactions (message_id);
+
+alter table public.message_reactions enable row level security;
+
+drop policy if exists "Members can view reactions" on public.message_reactions;
+create policy "Members can view reactions"
+  on public.message_reactions for select
+  to authenticated
+  using (public.is_room_member(room_id));
+
+drop policy if exists "Users can react as themselves" on public.message_reactions;
+create policy "Users can react as themselves"
+  on public.message_reactions for insert
+  to authenticated
+  with check (
+    user_id = auth.uid()
+    and public.is_room_member(room_id)
+    and exists (
+      select 1 from public.messages m
+      where m.id = message_id and m.room_id = room_id
+    )
+  );
+
+drop policy if exists "Users can remove their own reactions" on public.message_reactions;
+create policy "Users can remove their own reactions"
+  on public.message_reactions for delete
+  to authenticated
+  using (user_id = auth.uid());
+
+create table if not exists public.pins (
+  room_id uuid not null references public.rooms(id) on delete cascade,
+  message_id uuid not null references public.messages(id) on delete cascade,
+  pinned_by uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (room_id, message_id)
+);
+
+alter table public.pins enable row level security;
+
+drop policy if exists "Members can view pins" on public.pins;
+create policy "Members can view pins"
+  on public.pins for select
+  to authenticated
+  using (public.is_room_member(room_id));
+
+drop policy if exists "Admins can pin messages" on public.pins;
+create policy "Admins can pin messages"
+  on public.pins for insert
+  to authenticated
+  with check (public.is_room_admin(room_id));
+
+drop policy if exists "Admins can unpin messages" on public.pins;
+create policy "Admins can unpin messages"
+  on public.pins for delete
+  to authenticated
+  using (public.is_room_admin(room_id));
+
+alter table public.message_reactions replica identity full;
+alter table public.pins replica identity full;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'message_reactions'
+  ) then
+    execute 'alter publication supabase_realtime add table public.message_reactions';
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'pins'
+  ) then
+    execute 'alter publication supabase_realtime add table public.pins';
+  end if;
+end;
+$$;

@@ -19,16 +19,41 @@ const PAGE_SIZE = 30;
 const MESSAGE_COLUMNS =
   "id, room_id, sender_id, body, iv, ciphertext, reply_to_id, edited_at, deleted_at, created_at, profiles(display_name, username)";
 
+// Emoji palette used by the reaction picker.
+export const REACTION_EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "💯"];
+
+// Window events the rooms feature listens to so the info panel stays in sync.
+export const EVENTS = {
+  pins: "echorooms:pins",
+  presence: "echorooms:presence",
+};
+
 // Per-room cache of userId -> profile, used to label realtime messages.
 const memberCache = new Map();
 
 let channel = null;
 let editingId = null;
 let activeRoomKey = null;
+let isAdminRoom = false;
 
 // Ids of messages we just sent; realtime echoes for these are ignored because
 // the insert response already rendered them.
 const recentSends = new Set();
+
+// --- Reaction Service state ------------------------------------------------
+
+// messageId -> [{ emoji, user_id }]
+let reactionCache = new Map();
+// [{ message_id, text, sender, created_at }] in most-recent-first order.
+let pinsCache = [];
+// The message currently being replied to, or null.
+let replyTarget = null;
+// userId -> whatever the presence sync gave us for that user.
+const presenceMap = new Map();
+// userIds that are reportedly typing right now.
+const typingUsers = new Set();
+const typingTimers = new Map();
+let pickerOpenId = null;
 
 const LOCKED_TEXT = "Message is encrypted and can't be decrypted on this device.";
 const NO_KEY_TEXT = "Waiting for the room owner to share the encryption key.";
@@ -137,7 +162,7 @@ async function sendMessage(roomId, body) {
     body,
     iv: null,
     ciphertext: null,
-    reply_to_id: null,
+    reply_to_id: replyTarget ? replyTarget.id : null,
     edited_at: null,
     deleted_at: null,
     created_at: new Date().toISOString(),
@@ -151,7 +176,13 @@ async function sendMessage(roomId, body) {
   if (key) {
     const { data, error } = await supabase
       .from("messages")
-      .insert({ room_id: roomId, sender_id: state.currentUser.id, iv: encrypted.iv, ciphertext: encrypted.ct })
+      .insert({
+        room_id: roomId,
+        sender_id: state.currentUser.id,
+        iv: encrypted.iv,
+        ciphertext: encrypted.ct,
+        reply_to_id: pending.reply_to_id,
+      })
       .select(MESSAGE_COLUMNS)
       .single();
 
@@ -162,6 +193,7 @@ async function sendMessage(roomId, body) {
       return;
     }
 
+    clearReply();
     const index = state.messages.findIndex((m) => m.id === pendingId);
     const row = normalize(data);
     row.body = body; // keep the plaintext we just computed
@@ -196,7 +228,9 @@ function subscribeToRoom(roomId) {
   unsubscribe();
 
   channel = supabase
-    .channel(`messages:${roomId}`)
+    .channel(`messages:${roomId}`, {
+      config: { presence: { key: state.currentUser?.id || `guest-${roomId}` } },
+    })
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "messages", filter: `room_id=eq.${roomId}` },
@@ -212,7 +246,46 @@ function subscribeToRoom(roomId) {
       { event: "DELETE", schema: "public", table: "messages", filter: `room_id=eq.${roomId}` },
       (payload) => handleDelete(payload.old)
     )
-    .subscribe();
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "message_reactions", filter: `room_id=eq.${roomId}` },
+      (payload) => onReactionInsert(payload.new)
+    )
+    .on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "message_reactions", filter: `room_id=eq.${roomId}` },
+      (payload) => onReactionDelete(payload.old)
+    )
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "pins", filter: `room_id=eq.${roomId}` },
+      () => onPinsChanged()
+    )
+    .on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "pins", filter: `room_id=eq.${roomId}` },
+      () => onPinsChanged()
+    )
+    .on("broadcast", { event: "typing" }, (e) => handleTypingEvent(e.payload))
+    .on("presence", { event: "sync" }, () => {
+      presenceMap.clear();
+      const presence = channel.presenceState();
+      Object.values(presence).forEach((entries) => {
+        for (const entry of entries) {
+          if (entry.user_id) presenceMap.set(entry.user_id, entry);
+        }
+      });
+      window.dispatchEvent(new CustomEvent(EVENTS.presence));
+    })
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        const me = memberCache.get(roomId)?.get(state.currentUser?.id) || {};
+        channel.track({
+          user_id: state.currentUser?.id,
+          name: me.username ? `@${me.username}` : me.display_name || "Member",
+        });
+      }
+    });
 }
 
 function unsubscribe() {
@@ -261,6 +334,240 @@ function handleDelete(row) {
   const before = state.messages.length;
   state.messages = state.messages.filter((m) => m.id !== row.id);
   if (state.messages.length !== before) renderMessages();
+}
+
+// --- Reactions -------------------------------------------------------------
+
+function setCachedReactions(messageId, reactions) {
+  const cleaned = (reactions || []).filter((r) => r && r.emoji && r.user_id);
+  reactionCache.set(messageId, cleaned);
+}
+
+function onReactionInsert(row) {
+  if (state.currentRoomId !== row.room_id) return;
+  const list = reactionCache.get(row.message_id) || [];
+  if (list.some((r) => r.user_id === row.user_id && r.emoji === row.emoji)) return;
+  list.push({ emoji: row.emoji, user_id: row.user_id });
+  reactionCache.set(row.message_id, list);
+  renderMessages();
+}
+
+function onReactionDelete(row) {
+  if (state.currentRoomId !== row.room_id) return;
+  const list = reactionCache.get(row.message_id);
+  if (!list) return;
+  setCachedReactions(
+    row.message_id,
+    list.filter((r) => !(r.user_id === row.user_id && r.emoji === row.emoji))
+  );
+  renderMessages();
+}
+
+/** Loads reactions for the given messages into the reaction cache. */
+async function loadReactions(roomId, messages) {
+  const ids = messages
+    .filter((m) => m.id && m.status !== "sending" && m.status !== "failed")
+    .map((m) => m.id);
+  if (!ids.length) return;
+  const { data, error } = await supabase
+    .from("message_reactions")
+    .select("message_id, emoji, user_id")
+    .in("message_id", ids);
+  if (error || !data) return;
+  data.forEach((r) => {
+    const list = reactionCache.get(r.message_id) || [];
+    list.push({ emoji: r.emoji, user_id: r.user_id });
+    reactionCache.set(r.message_id, list);
+  });
+}
+
+/**
+ * Toggles the current user's reaction on a message. The cache is updated
+ * optimistically; realtime echoes are ignored because they now match the cache.
+ */
+async function toggleReaction(messageId, emoji) {
+  const userId = state.currentUser?.id;
+  const roomId = state.currentRoomId;
+  if (!userId || !messageId || !emoji || !roomId) return;
+
+  const list = reactionCache.get(messageId) || [];
+  const exists = list.some((r) => r.user_id === userId && r.emoji === emoji);
+
+  if (exists) {
+    setCachedReactions(
+      messageId,
+      list.filter((r) => !(r.user_id === userId && r.emoji === emoji))
+    );
+    renderMessages();
+    await supabase
+      .from("message_reactions")
+      .delete()
+      .eq("message_id", messageId)
+      .eq("user_id", userId)
+      .eq("emoji", emoji);
+  } else {
+    setCachedReactions(messageId, [...list, { emoji, user_id: userId }]);
+    renderMessages();
+    await supabase
+      .from("message_reactions")
+      .insert({ message_id: messageId, room_id: roomId, user_id: userId, emoji });
+  }
+}
+
+// --- Pins ------------------------------------------------------------------
+
+async function onPinsChanged() {
+  await loadPins(state.currentRoomId);
+  renderMessages();
+}
+
+async function loadPins(roomId) {
+  if (!supabase || !roomId) return;
+  const { data, error } = await supabase
+    .from("pins")
+    .select("message_id, created_at, messages(id, room_id, sender_id, body, iv, ciphertext, created_at, profiles(display_name, username))")
+    .eq("room_id", roomId)
+    .order("created_at", { ascending: false });
+  pinsCache = [];
+  if (error || !data) {
+    window.dispatchEvent(new CustomEvent(EVENTS.pins));
+    return;
+  }
+  for (const pin of data) {
+    const m = pin.messages;
+    if (!m) continue;
+    const msg = normalize(m);
+    await decryptMessageContent(msg);
+    pinsCache.push({
+      message_id: m.id,
+      text: msg.body || "",
+      sender: m.profiles || {},
+      created_at: pin.created_at,
+    });
+  }
+  window.dispatchEvent(new CustomEvent(EVENTS.pins));
+}
+
+export function getPins() {
+  return pinsCache;
+}
+
+async function pinMessage(roomId, messageId) {
+  if (!supabase || !state.currentUser) return;
+  await supabase
+    .from("pins")
+    .insert({ room_id: roomId, message_id: messageId, pinned_by: state.currentUser.id });
+  await onPinsChanged();
+}
+
+export async function unpinMessage(roomId, messageId) {
+  if (!supabase) return;
+  await supabase
+    .from("pins")
+    .delete()
+    .eq("room_id", roomId)
+    .eq("message_id", messageId);
+  await onPinsChanged();
+}
+
+// --- Replies ---------------------------------------------------------------
+
+function startReply(message) {
+  replyTarget = {
+    id: message.id,
+    sender: senderName(message),
+    text: message.body || "",
+  };
+  renderReplyBar();
+  dom.composerInput?.focus();
+}
+
+function clearReply() {
+  replyTarget = null;
+  renderReplyBar();
+}
+
+function renderReplyBar() {
+  if (!dom.replyBar) return;
+  if (replyTarget) {
+    dom.replyBar.classList.remove("is-hidden");
+    if (dom.replySender) dom.replySender.textContent = replyTarget.sender;
+    if (dom.replyText) dom.replyText.textContent = replyTarget.text;
+  } else {
+    dom.replyBar.classList.add("is-hidden");
+  }
+}
+
+// --- Typing indicators -----------------------------------------------------
+
+function broadcastTyping(isTyping) {
+  if (!channel) return;
+  channel.send({
+    type: "broadcast",
+    event: "typing",
+    payload: { isTyping, user_id: state.currentUser?.id },
+  });
+}
+
+function handleTypingEvent(payload) {
+  const roomId = state.currentRoomId;
+  const userId = payload?.user_id;
+  if (!userId || userId === state.currentUser?.id || !roomId) return;
+
+  if (payload.isTyping) {
+    typingUsers.add(userId);
+    clearTimeout(typingTimers.get(userId));
+    typingTimers.set(
+      userId,
+      setTimeout(() => {
+        typingUsers.delete(userId);
+        renderTypingIndicator();
+      }, 2500)
+    );
+  } else {
+    typingUsers.delete(userId);
+    clearTimeout(typingTimers.get(userId));
+  }
+  renderTypingIndicator();
+}
+
+function renderTypingIndicator() {
+  if (!dom.typingIndicator) return;
+  const names = [...typingUsers]
+    .map((id) => {
+      const prof = memberCache.get(state.currentRoomId)?.get(id);
+      if (!prof) return "";
+      return prof.username ? `@${prof.username}` : prof.display_name || "someone";
+    })
+    .filter(Boolean);
+
+  if (!names.length) {
+    dom.typingIndicator.classList.add("is-hidden");
+    dom.typingIndicator.textContent = "";
+    return;
+  }
+  dom.typingIndicator.textContent =
+    names.length === 1 ? `${names[0]} is typing…` : "Several people are typing…";
+  dom.typingIndicator.classList.remove("is-hidden");
+}
+
+// --- Presence --------------------------------------------------------------
+
+export function getPresence() {
+  return presenceMap;
+}
+
+/**
+ * Subscribes to presence changes for a room. Returns an unsubscribe function.
+ * `handlers.onSync(present: Map<user_id, entry>)` fires on every presence sync.
+ */
+export function subscribeToPresence(roomId, handlers = {}) {
+  const onSync = () => {
+    if (state.currentRoomId !== roomId) return;
+    handlers.onSync?.(presenceMap);
+  };
+  window.addEventListener(EVENTS.presence, onSync);
+  return () => window.removeEventListener(EVENTS.presence, onSync);
 }
 
 async function ensureSenderName(msg, roomId) {
@@ -359,6 +666,24 @@ function messageHtml(msg) {
 
   const edited = msg.edited_at && !deleted ? " · edited" : "";
 
+  let replyQuote = "";
+  if (msg.reply_to_id) {
+    const target = state.messages.find((m) => m.id === msg.reply_to_id);
+    const rtText =
+      target && !target.deleted_at && target.body ? target.body : "Original message";
+    const rtName = target ? senderName(target) : "";
+    replyQuote = `
+      <div class="bubble-reply">
+        <span class="bubble-reply-sender">${rtName ? escapeHtml(rtName) : ""}</span>
+        <span class="bubble-reply-text">${renderBody(rtText)}</span>
+      </div>`;
+  }
+
+  const pinned = pinsCache.some((p) => p.message_id === msg.id);
+  const pinItem = pinned
+    ? '<span class="bubble-pin" title="Pinned message">📌</span>'
+    : "";
+
   return `
     <div class="msg ${own ? "own" : "other"}" data-id="${msg.id}">
       ${
@@ -366,6 +691,8 @@ function messageHtml(msg) {
           ? `<div class="msg-menu">
                <button type="button" class="msg-menu-btn" data-menu aria-label="Message actions">⋯</button>
                <div class="msg-menu-list is-hidden">
+                 <button type="button" data-action="reply">Reply</button>
+                 ${isAdminRoom ? `<button type="button" data-action="${pinned ? "unpin" : "pin"}">${pinned ? "Unpin" : "Pin"}</button>` : ""}
                  <button type="button" data-action="edit">Edit</button>
                  <button type="button" data-action="delete" class="danger">Delete</button>
                </div>
@@ -374,9 +701,37 @@ function messageHtml(msg) {
       }
       <div class="bubble ${deleted ? "bubble-deleted" : ""}">
         ${sender}
-        <span class="bubble-text">${text}</span>
+        ${replyQuote}
+        <span class="bubble-text ${pinned ? "is-pinned" : ""}">${pinItem}${text}</span>
         <span class="bubble-meta">${formatTime(msg.created_at)}${edited}${status}</span>
       </div>
+      ${deleted || msg.status === "sending" || msg.status === "failed" ? "" : messageActionsHtml(msg)}
+    </div>`;
+}
+
+function messageActionsHtml(msg) {
+  const mine = state.currentUser?.id;
+  const counts = new Map();
+  const reacted = new Set();
+  (reactionCache.get(msg.id) || []).forEach((r) => {
+    counts.set(r.emoji, (counts.get(r.emoji) || 0) + 1);
+    if (r.user_id === mine) reacted.add(r.emoji);
+  });
+
+  const pills = [...counts.entries()]
+    .map(
+      ([emoji, count]) =>
+        `<button type="button" class="reaction-pill${reacted.has(emoji) ? " active" : ""}" data-react="${emoji}" data-message="${msg.id}" title="Toggle ${emoji}">${emoji}<span class="reaction-count">${count}</span></button>`
+    )
+    .join("");
+
+  const own = msg.sender_id === state.currentUser?.id;
+
+  return `
+    <div class="msg-actions">
+      ${pills ? `<div class="reaction-row">${pills}</div>` : ""}
+      <button type="button" class="msg-react" data-react-open data-message="${msg.id}" title="Add a reaction">＋</button>
+      ${own ? "" : `<button type="button" class="msg-reply-link" data-action="reply" data-message="${msg.id}">Reply</button>`}
     </div>`;
 }
 
@@ -386,6 +741,7 @@ function renderMessages({ stickToBottom = false } = {}) {
 
   const prevScroll = el.scrollTop;
   editingId = null;
+  pickerOpenId = null;
 
   if (state.messagesLoading && !state.messages.length) {
     el.innerHTML = '<div class="chat-welcome"><p>Loading messages…</p></div>';
@@ -522,12 +878,51 @@ function onRetry(message) {
   sendMessage(message.room_id, message.body);
 }
 
+function closePicker() {
+  document.querySelectorAll(".emoji-picker").forEach((p) => p.remove());
+  pickerOpenId = null;
+}
+
+function toggleReactionPicker(messageId, anchor) {
+  if (pickerOpenId === messageId) {
+    closePicker();
+    return;
+  }
+  closePicker();
+  const picker = document.createElement("div");
+  picker.className = "emoji-picker";
+  picker.innerHTML = REACTION_EMOJI.map(
+    (emoji) =>
+      `<button type="button" class="emoji-picker-btn" data-react="${emoji}" data-message="${messageId}">${emoji}</button>`
+  ).join("");
+  (anchor.parentElement || anchor).appendChild(picker);
+  pickerOpenId = messageId;
+}
+
 function handleMessagesClick(event) {
+  const pickerBtn = event.target.closest("[data-react-open]");
+  if (pickerBtn) {
+    closeMenus();
+    toggleReactionPicker(pickerBtn.dataset.message, pickerBtn);
+    return;
+  }
+
+  const reactBtn = event.target.closest("[data-react]");
+  if (reactBtn) {
+    const emoji = reactBtn.dataset.react;
+    const messageId = reactBtn.dataset.message;
+    if (!emoji || !messageId) return;
+    toggleReaction(messageId, emoji);
+    closePicker();
+    return;
+  }
+
   const menuBtn = event.target.closest("[data-menu]");
   if (menuBtn) {
     const list = menuBtn.parentElement.querySelector(".msg-menu-list");
     const willOpen = list.classList.contains("is-hidden");
     closeMenus(list);
+    closePicker();
     list.classList.toggle("is-hidden", !willOpen);
     return;
   }
@@ -535,6 +930,7 @@ function handleMessagesClick(event) {
   const msgEl = event.target.closest(".msg");
   if (!msgEl) {
     closeMenus();
+    closePicker();
     return;
   }
   const message = state.messages.find((m) => m.id === msgEl.dataset.id);
@@ -546,7 +942,16 @@ function handleMessagesClick(event) {
     return;
   }
 
-  if (event.target.closest("[data-action='edit']")) {
+  if (event.target.closest("[data-action='reply']")) {
+    closeMenus();
+    startReply(message);
+  } else if (event.target.closest("[data-action='pin']")) {
+    closeMenus();
+    pinMessage(state.currentRoomId, message.id);
+  } else if (event.target.closest("[data-action='unpin']")) {
+    closeMenus();
+    unpinMessage(state.currentRoomId, message.id);
+  } else if (event.target.closest("[data-action='edit']")) {
     closeMenus();
     startEdit(msgEl, message);
   } else if (event.target.closest("[data-action='delete']")) {
@@ -556,6 +961,7 @@ function handleMessagesClick(event) {
     onRetry(message);
   } else {
     closeMenus();
+    closePicker();
   }
 }
 
@@ -574,6 +980,7 @@ async function loadOlderMessages() {
   if (state.currentRoomId !== roomId) return;
 
   for (const msg of older) await decryptMessageContent(msg);
+  await loadReactions(roomId, older);
   if (older.length < PAGE_SIZE) state.hasMoreMessages = false;
   state.messages = older.concat(state.messages);
   state.messagesLoading = false;
@@ -591,6 +998,16 @@ export async function openRoom(roomId) {
   state.messages = [];
   state.messagesLoading = true;
   state.hasMoreMessages = true;
+  reactionCache = new Map();
+  pinsCache = [];
+  replyTarget = null;
+  renderReplyBar();
+  typingUsers.clear();
+  typingTimers.forEach((t) => clearTimeout(t));
+  typingTimers.clear();
+  renderTypingIndicator();
+  presenceMap.clear();
+  isAdminRoom = false;
 
   renderMessages();
   setComposerNotice("");
@@ -598,6 +1015,7 @@ export async function openRoom(roomId) {
   await loadMembers(roomId);
 
   const isAdmin = await canManageRoom(roomId);
+  isAdminRoom = isAdmin;
   if (isAdmin) {
     activeRoomKey = await ensureRoomKey(roomId);
     await shareMissingKeys(roomId);
@@ -615,6 +1033,8 @@ export async function openRoom(roomId) {
   state.messages = messages;
   state.hasMoreMessages = messages.length === PAGE_SIZE;
   state.messagesLoading = false;
+  await loadReactions(roomId, messages);
+  await loadPins(roomId);
   renderMessages({ stickToBottom: true });
 
   if (!activeRoomKey) {
@@ -628,8 +1048,19 @@ export function closeRoom() {
   unsubscribe();
   editingId = null;
   activeRoomKey = null;
+  isAdminRoom = false;
   state.messages = [];
   state.currentRoomId = null;
+  reactionCache = new Map();
+  pinsCache = [];
+  replyTarget = null;
+  renderReplyBar();
+  typingUsers.clear();
+  typingTimers.forEach((t) => clearTimeout(t));
+  typingTimers.clear();
+  renderTypingIndicator();
+  presenceMap.clear();
+  closePicker();
   hideMentionMenu();
   setComposerNotice("");
 }
@@ -728,6 +1159,9 @@ function initMentionMenu() {
 // --- Composer --------------------------------------------------------------
 
 function initComposer() {
+  let lastTypingBroadcast = 0;
+  const TYPING_BROADCAST_MS = 2000;
+
   const send = () => {
     const roomId = state.currentRoomId;
     const body = dom.composerInput.value.trim();
@@ -736,6 +1170,7 @@ function initComposer() {
     dom.composerInput.value = "";
     autoGrow(dom.composerInput);
     hideMentionMenu();
+    broadcastTyping(false);
     sendMessage(roomId, body);
   };
 
@@ -746,6 +1181,18 @@ function initComposer() {
       send();
     }
   });
+
+  dom.composerInput?.addEventListener("input", () => {
+    autoGrow(dom.composerInput);
+    const now = Date.now();
+    if (now - lastTypingBroadcast > TYPING_BROADCAST_MS) {
+      lastTypingBroadcast = now;
+      broadcastTyping(true);
+    }
+  });
+  dom.composerInput?.addEventListener("blur", () => broadcastTyping(false));
+
+  dom.replyCancel?.addEventListener("click", clearReply);
 
   dom.messagesEl?.addEventListener("scroll", () => {
     if (dom.messagesEl.scrollTop > 60) return;
@@ -779,4 +1226,10 @@ export function initChat() {
   initComposer();
   initMentionMenu();
   initMobileBack();
+
+  // Clicks outside the reaction picker close it.
+  document.addEventListener("click", (e) => {
+    if (e.target.closest(".msg-actions, .emoji-picker")) return;
+    closePicker();
+  });
 }

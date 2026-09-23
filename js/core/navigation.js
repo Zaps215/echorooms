@@ -73,6 +73,19 @@ export function closeInfo() {
   syncDrawerBackdrop();
 }
 
+// --- First-run onboarding ---
+// A full-page overlay inside the app shell shown until the user claims their
+// @username. Its optional profile fields (display name, DoB, avatar) can be
+// updated any time from the profile page.
+
+export function showOnboarding() {
+  if (dom.onboardingView) dom.onboardingView.classList.remove("is-hidden");
+}
+
+export function hideOnboarding() {
+  if (dom.onboardingView) dom.onboardingView.classList.add("is-hidden");
+}
+
 export function openInfo() {
   if (!dom.info) return;
   closeSidebar();

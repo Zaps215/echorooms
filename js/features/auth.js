@@ -7,7 +7,7 @@
 import * as dom from "../core/dom.js";
 import { supabase, isSupabaseConfigured } from "../core/supabase.js";
 import { showError, hideError, showAuthError, updatePasswordStrength } from "../core/utils.js";
-import { switchAuthForm, showAppShell, initPasswordToggle } from "../core/navigation.js";
+import { switchAuthForm, initPasswordToggle } from "../core/navigation.js";
 import { startSignupOtp, startResetOtp } from "./otp.js";
 import { setPendingPassword, rekeyIdentity } from "../core/keyring.js";
 
@@ -39,8 +39,9 @@ async function submitSignin(form, errorEl) {
       submitBtn.disabled = false;
       return;
     }
+    // The app shell opens via enterApp (which also gates 2FA); keep the form
+    // state tidy in case an MFA code prompt interrupts the flow.
     form.reset();
-    showAppShell();
   } catch (error) {
     showError(errorEl, showAuthError(error));
     submitBtn.disabled = false;
@@ -88,10 +89,7 @@ async function submitForgot(form, errorEl) {
 
   try {
     const email = dom.forgotEmail.value.trim();
-    const result = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false },
-    });
+    const result = await supabase.auth.resetPasswordForEmail(email);
 
     if (result.error) {
       if (result.error.message.toLowerCase().includes("not found") || result.error.code === "user_not_found") {
@@ -135,7 +133,6 @@ async function submitRecovery(form, errorEl) {
     // Re-wrap the identity key under the new password.
     await rekeyIdentity(dom.recoveryPassword.value);
     form.reset();
-    showAppShell();
   } catch (error) {
     showError(errorEl, "Could not update password.");
     submitBtn.disabled = false;

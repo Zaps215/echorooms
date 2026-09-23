@@ -618,6 +618,82 @@ input, textarea { font-family: inherit; }
 }
 .bubble-edit-save:disabled { opacity: .5; cursor: default; }
 
+/* Reply quote inside a bubble */
+.bubble-reply {
+  display: block; margin: 0 0 4px; padding: 2px 8px;
+  border-left: 2px solid var(--accent); border-radius: 4px;
+  background: rgba(0,0,0,.035); overflow: hidden;
+}
+.bubble-reply-sender { display: block; font-size: 12px; font-weight: 700; color: var(--accent); }
+.bubble-reply-text {
+  display: block; font-size: 12px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bubble-pin { margin-right: 3px; font-size: 12px; }
+
+/* Reactions, react button, reply link */
+.msg { flex-wrap: wrap; }
+.msg-actions {
+  flex-basis: 100%; display: flex; align-items: center; gap: 6px;
+  margin-top: 2px; flex-wrap: wrap; min-height: 22px;
+}
+.msg.own .msg-actions { justify-content: flex-end; }
+.reaction-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.reaction-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12.5px; line-height: 1; padding: 4px 8px;
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  cursor: pointer; box-shadow: var(--shadow-sm); transition: border-color .15s, background .15s;
+}
+.reaction-pill:hover { border-color: var(--accent); }
+.reaction-pill.active { background: rgba(37,99,235,.08); border-color: var(--accent); }
+.reaction-count { font-size: 11px; color: var(--muted); font-weight: 600; }
+.msg-react, .msg-reply-link {
+  border: 1px solid var(--line); background: #fff; color: var(--muted);
+  border-radius: 14px; cursor: pointer; padding: 4px 8px;
+  font-size: 12.5px; line-height: 1; box-shadow: var(--shadow-sm);
+}
+.msg-react:hover, .msg-reply-link:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Emoji picker popover */
+.emoji-picker {
+  position: absolute; z-index: 20; display: grid;
+  grid-template-columns: repeat(5, 34px);
+  gap: 4px; padding: 8px; background: var(--panel-bg);
+  border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,.14));
+}
+.msg.own .emoji-picker { right: 0; }
+.msg-actions { position: relative; }
+.emoji-picker-btn {
+  border: 0; background: none; cursor: pointer; font-size: 20px;
+  padding: 4px; border-radius: 8px; line-height: 1;
+}
+.emoji-picker-btn:hover { background: rgba(0,0,0,.06); }
+
+/* Composer: reply bar + typing indicator */
+.typing-indicator {
+  font-size: 12px; color: var(--muted); font-style: italic;
+  margin: 0 0 4px 14px; padding: 0;
+}
+.reply-bar {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 4px 8px; margin-bottom: 4px;
+  background: rgba(37,99,235,.06); border-left: 3px solid var(--accent);
+  border-radius: 6px;
+}
+.reply-preview { flex: 1; min-width: 0; overflow: hidden; }
+.reply-sender { display: block; font-size: 11.5px; font-weight: 700; color: var(--accent); }
+.reply-text {
+  display: block; font-size: 12px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.reply-close {
+  flex-shrink: 0; border: 0; background: none; color: var(--muted-2);
+  cursor: pointer; padding: 4px; border-radius: 6px; display: flex;
+}
+.reply-close:hover { color: var(--ink); background: rgba(0,0,0,.06); }
+
 .composer { border-top: 1px solid var(--line); padding: 10px 14px; background: var(--panel-bg); }
 .composer-inner {
   display: flex; align-items: flex-end; gap: 6px;
@@ -673,6 +749,26 @@ input, textarea { font-family: inherit; }
 .member-name { flex: 1; font-size: 13.5px; font-weight: 600; }
 .member-presence { font-size: 11.5px; color: var(--muted-2); }
 .member-presence.online { color: var(--ok); }
+.member-presence.offline { color: var(--muted-2); }
+
+/* Pinned messages panel */
+.pin-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; }
+.pin-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--panel-bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 7px 10px;
+}
+.pin-main { flex: 1; min-width: 0; overflow: hidden; }
+.pin-text {
+  display: block; font-size: 13px; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pin-meta { display: block; font-size: 11px; color: var(--muted-2); }
+.pin-unpin {
+  flex-shrink: 0; border: 0; background: none; cursor: pointer;
+  color: var(--muted-2); border-radius: 6px; padding: 4px;
+}
+.pin-unpin:hover { color: var(--danger); background: rgba(0,0,0,.06); }
 
 .option-list { display: grid; gap: 6px; }
 .option-btn {
@@ -1025,6 +1121,122 @@ button, input, textarea { touch-action: manipulation; }
   text-align: center;
 }
 
+/* Restore deleted chats list */
+.restore-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.restore-list .dm-none { padding: 14px; }
+.restore-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 10px;
+}
+.restore-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--text, #0f172a);
+}
+.restore-restore-btn {
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
 /* Invite: added state */
 .dm-result:disabled { cursor: default; opacity: 0.65; }
 .dm-added { color: #059669; font-size: 12px; font-weight: 600; }
+
+/* ---------------- First-run onboarding & MFA overlay ---------------- */
+
+/* Full-screen layers that sit above the app/auth shells. */
+.onboarding-view {
+  position: absolute; inset: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px;
+  background: var(--bg, #f2f5f9);
+  overflow-y: auto;
+}
+.mfa-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px;
+  background: var(--bg, #f2f5f9);
+}
+
+.onboarding-card {
+  width: 100%; max-width: 420px;
+  background: #fff;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 18px;
+  padding: 32px 32px 28px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 24px 60px rgba(16, 24, 40, .14);
+}
+.onboarding-logo {
+  font-size: 18px; font-weight: 800; letter-spacing: -.01em;
+  color: var(--ink, #0f172a); margin-bottom: 18px;
+}
+.onboarding-card h1 { margin: 0 0 6px; font-size: 24px; font-weight: 700; color: var(--ink, #0f172a); }
+.onboarding-sub { margin: 0 0 22px; font-size: 13.5px; line-height: 1.55; color: var(--muted, #64748b); }
+.onboarding-foot {
+  margin: 16px 0 0; text-align: center;
+  font-size: 12.5px; color: var(--muted-2, #94a3b8);
+}
+
+.field-hint { margin: 5px 0 0; font-size: 12px; color: var(--muted-2, #94a3b8); }
+.field-label { display: block; font-size: 13px; font-weight: 600; color: var(--ink, #0f172a); margin-bottom: 7px; }
+
+.onboard-avatar-row { display: flex; align-items: center; gap: 14px; }
+.onboard-avatar {
+  width: 56px; height: 56px; font-size: 20px;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+}
+
+/* Profile security card */
+.security-card {
+  margin: 22px 0 0;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 14px;
+  padding: 16px 18px;
+  background: #fff;
+}
+.security-head h4 { margin: 0; font-size: 12.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted-2, #94a3b8); }
+.security-head p { margin: 4px 0 0; font-size: 13px; color: var(--muted, #64748b); }
+.security-actions { display: flex; gap: 10px; margin-top: 12px; }
+.security-actions .btn-ghost { flex: 1; text-align: center; }
+.btn-ghost.danger { color: var(--danger, #dc2626); }
+.btn-ghost.danger:hover { background: rgba(220, 38, 38, .08); }
+
+/* 2FA setup wizard */
+.mfa-qr {
+  display: flex; justify-content: center;
+  padding: 8px; margin: 14px 0 4px;
+  background: #fff; border: 1px solid var(--line, #e2e8f0); border-radius: 14px;
+}
+.mfa-qr img { width: 200px; height: 200px; border-radius: 8px; image-rendering: pixelated; }
+.mfa-secret-label {
+  margin: 10px 0 4px; text-align: center;
+  font-size: 12px; color: var(--muted-2, #94a3b8);
+}
+.mfa-secret {
+  margin: 0 auto 6px; padding: 10px 12px;
+  max-width: 100%; text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px; letter-spacing: .08em; color: var(--ink, #0f172a);
+  background: #f6f8fb; border: 1px solid var(--line, #e2e8f0); border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+
+.mfa-overlay .otp-boxes { margin: 22px 0 16px; }
+.mfa-overlay .btn-primary { margin-top: 4px; }

@@ -97,3 +97,53 @@ export function updatePasswordStrength(input, strengthEl) {
     label.textContent = input.value ? labels[score] : "";
   }
 }
+
+/**
+ * Wires a row of single-digit inputs (auto-advance, backspace navigation,
+ * paste support) and calls `onComplete(code)` once every box holds a digit.
+ * Returns a function that reads the current code from the boxes.
+ */
+export function initDigitBoxes(container, onComplete) {
+  const boxes = Array.from(container.querySelectorAll("input"));
+  if (!boxes.length) return () => "";
+
+  const readCode = () => boxes.map((b) => b.value).join("");
+
+  boxes.forEach((box, index, arr) => {
+    box.addEventListener("input", (e) => {
+      const digit = e.target.value.replace(/\D/g, "");
+      box.value = digit.slice(0, 1);
+      if (box.value && index < arr.length - 1) {
+        arr[index + 1].focus();
+        arr[index + 1].select();
+      }
+      if (readCode().length === arr.length) onComplete?.(readCode());
+    });
+
+    box.addEventListener("keydown", (e) => {
+      if (e.key === "Backspace" && !box.value && index > 0) {
+        arr[index - 1].focus();
+        arr[index - 1].value = "";
+      }
+      if (e.key === "Enter" && readCode().length === arr.length) {
+        onComplete?.(readCode());
+      }
+    });
+
+    box.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const paste = (e.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "");
+      arr.forEach((b, i) => {
+        b.value = paste[i] || "";
+      });
+      const last = arr[Math.min(paste.length, arr.length) - 1];
+      if (last) {
+        last.focus();
+        last.select();
+      }
+      if (readCode().length === arr.length) onComplete?.(readCode());
+    });
+  });
+
+  return readCode;
+}

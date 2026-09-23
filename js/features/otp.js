@@ -9,7 +9,7 @@ import * as dom from "../core/dom.js";
 import { otpState, state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
 import { showError, hideError, showAuthError } from "../core/utils.js";
-import { switchAuthForm, showAppShell } from "../core/navigation.js";
+import { switchAuthForm } from "../core/navigation.js";
 import { setPendingPassword } from "../core/keyring.js";
 
 const OTP_RESEND_SECONDS = 30;
@@ -53,8 +53,12 @@ export function startOtp(purpose) {
   resetOtpBoxes();
   clearInterval(otpState.countdownTimer);
   hideError(dom.otpError);
+  // Supabase email templates decide whether the user gets a numeric code or a
+  // magic link. The reset flow uses resetPasswordForEmail (the "Reset password"
+  // template); resend is rate-limited to 60s.
+  if (dom.otpResetHint) dom.otpResetHint.hidden = purpose !== "reset";
   switchAuthForm("otp");
-  startOtpCountdown(OTP_RESEND_SECONDS);
+  startOtpCountdown(purpose === "reset" ? 60 : OTP_RESEND_SECONDS);
   focusFirstBox();
 }
 
@@ -90,7 +94,7 @@ async function verifyOtp(token) {
     const result = await supabase.auth.verifyOtp({
       email: otpState.email,
       token,
-      type: "email",
+      type: otpState.purpose === "reset" ? "recovery" : "email",
     });
 
     if (result.error) {
@@ -101,13 +105,23 @@ async function verifyOtp(token) {
     }
 
     if (otpState.purpose === "signup") {
-      const upd = await supabase.auth.updateUser({
+      const user = result.data.user;
+      const pendingName = otpState.pendingName;
+
+      // Persist the display name into both auth metadata and the profiles
+      // table. updateUser alone only touches auth.users.raw_user_meta_data;
+      // leaving it out of profiles would leave display_name = '' in the DB,
+      // which previously made direct rooms and member lists show no name.
+      await supabase
+        .from("profiles")
+        .update({ display_name: pendingName })
+        .eq("id", user.id);
+      await supabase.auth.updateUser({
         password: otpState.pendingPassword,
-        data: { display_name: otpState.pendingName },
+        data: { display_name: pendingName },
       });
-      state.currentUser = result.data.user;
+      state.currentUser = user;
       dom.authFormSignup.reset();
-      showAppShell();
     } else {
       switchAuthForm("recovery");
       dom.recoveryPassword.focus();
@@ -169,16 +183,16 @@ function initOtpEvents() {
   dom.otpResend.addEventListener("click", async () => {
     hideError(dom.otpError);
     try {
-      const result = await supabase.auth.signInWithOtp({
-        email: otpState.email,
-        options: { shouldCreateUser: otpState.purpose === "reset" ? false : undefined },
-      });
+      const result =
+        otpState.purpose === "reset"
+          ? await supabase.auth.resetPasswordForEmail(otpState.email)
+          : await supabase.auth.signInWithOtp({ email: otpState.email });
       if (result.error) {
         showError(dom.otpError, showAuthError(result.error));
         return;
       }
       resetOtpBoxes();
-      startOtpCountdown(OTP_RESEND_SECONDS);
+      startOtpCountdown(otpState.purpose === "reset" ? 60 : OTP_RESEND_SECONDS);
       focusFirstBox();
     } catch (error) {
       showError(dom.otpError, showAuthError(error));

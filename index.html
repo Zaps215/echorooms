@@ -35,7 +35,7 @@
 
           <div class="field">
             <label for="signin-email">Email</label>
-            <input id="signin-email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required />
+            <input id="signin-email" type="email" name="email" placeholder="you@example.com" autocomplete="username" required />
           </div>
 
           <div class="field">
@@ -82,12 +82,12 @@
 
           <div class="field">
             <label for="signup-name">Full name</label>
-            <input id="signup-name" type="text" name="name" placeholder="Jane Appleseed" autocomplete="name" required />
+            <input id="signup-name" type="text" name="name" maxlength="80" placeholder="Jane Appleseed" autocomplete="name" required />
           </div>
 
           <div class="field">
             <label for="signup-email">Email</label>
-            <input id="signup-email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required />
+            <input id="signup-email" type="email" name="email" placeholder="you@example.com" autocomplete="username" required />
           </div>
 
           <div class="field">
@@ -119,7 +119,7 @@
           </div>
 
           <label class="check">
-            <input type="checkbox" name="terms" required />
+            <input type="checkbox" id="signup-terms" name="terms" autocomplete="off" required />
             <span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a></span>
           </label>
 
@@ -154,7 +154,7 @@
 
           <div class="field">
             <label for="forgot-email">Email</label>
-            <input id="forgot-email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required />
+            <input id="forgot-email" type="email" name="email" placeholder="you@example.com" autocomplete="username" required />
           </div>
 
           <div class="error-box" id="forgot-error" role="alert" hidden></div>
@@ -175,15 +175,16 @@
             </div>
             <h1 id="otp-title">Verify your email</h1>
             <p>Enter the 6-digit code we sent to <strong class="otp-email" id="otp-email"></strong>. Check your spam folder if you can't find it.</p>
+            <p class="otp-hint" id="otp-reset-hint" hidden>If your email shows a link instead of a code, open it and you'll be taken straight to the password form.</p>
           </div>
 
           <div class="otp-boxes" id="otp-boxes" aria-label="Verification code">
-            <input type="tel" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1" />
-            <input type="tel" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 2" />
-            <input type="tel" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 3" />
-            <input type="tel" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 4" />
-            <input type="tel" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 5" />
-            <input type="tel" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 6" />
+            <input type="tel" id="otp-digit-0" name="otp0" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1" />
+            <input type="tel" id="otp-digit-1" name="otp1" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 2" />
+            <input type="tel" id="otp-digit-2" name="otp2" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 3" />
+            <input type="tel" id="otp-digit-3" name="otp3" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 4" />
+            <input type="tel" id="otp-digit-4" name="otp4" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 5" />
+            <input type="tel" id="otp-digit-5" name="otp5" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 6" />
           </div>
 
           <div class="otp-status">
@@ -202,6 +203,7 @@
             <h1>Choose a new password</h1>
             <p>Create a strong password to secure your account</p>
           </div>
+          <input type="text" name="username" autocomplete="username" hidden />
 
           <div class="field">
             <label for="recovery-password">New password</label>
@@ -236,8 +238,75 @@
     </section>
   </main>
 
+  <!-- Two-factor challenge shown when the signed-in account requires a TOTP code -->
+  <div class="mfa-overlay is-hidden" id="mfa-overlay">
+    <div class="onboarding-card">
+      <div class="onboarding-logo">EchoRooms</div>
+      <h1>Two-factor verification</h1>
+      <p class="onboarding-sub">Enter the 6-digit code from your authenticator app to continue.</p>
+
+      <div class="otp-boxes" id="mfa-boxes" aria-label="Two-factor verification code">
+        <input type="tel" id="mfa-digit-0" name="mfa0" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1" />
+        <input type="tel" id="mfa-digit-1" name="mfa1" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 2" />
+        <input type="tel" id="mfa-digit-2" name="mfa2" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 3" />
+        <input type="tel" id="mfa-digit-3" name="mfa3" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 4" />
+        <input type="tel" id="mfa-digit-4" name="mfa4" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 5" />
+        <input type="tel" id="mfa-digit-5" name="mfa5" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 6" />
+      </div>
+
+      <div class="error-box" id="mfa-error" role="alert" hidden></div>
+
+      <button type="button" class="btn-primary" id="btn-mfa-submit" style="width:100%">Verify</button>
+    </div>
+  </div>
+
   <!-- ============ APP SHELL ============ -->
   <div class="app-wrapper is-hidden" id="app-wrapper">
+    <!-- First-run profile onboarding -->
+    <div class="onboarding-view is-hidden" id="onboarding-view">
+      <div class="onboarding-card">
+        <div class="onboarding-logo">EchoRooms</div>
+        <h1>Set up your profile</h1>
+        <p class="onboarding-sub">This only takes a moment. You can update any of this anytime from your profile.</p>
+
+        <form class="modal-form" id="onboarding-form" novalidate>
+          <div class="field">
+            <label for="onboard-name">Display name <small>(optional)</small></label>
+            <input id="onboard-name" type="text" name="name" maxlength="80" autocomplete="name" placeholder="Jane Appleseed" />
+          </div>
+
+          <div class="field">
+            <label for="onboard-username">Username</label>
+            <input id="onboard-username" type="text" name="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9_.]+" placeholder="@handle" autocomplete="off" autocapitalize="off" spellcheck="false" required />
+            <p class="field-hint">People use this to find you and start a private chat. It can't be changed once set.</p>
+          </div>
+
+          <div class="field">
+            <label for="onboard-dob">Date of birth <small>(optional)</small></label>
+            <input id="onboard-dob" type="date" name="dob" />
+          </div>
+
+          <div class="field">
+            <span class="field-label">Profile picture <small>(optional)</small></span>
+            <div class="onboard-avatar-row">
+              <span class="me-avatar onboard-avatar" id="onboard-avatar-preview">?</span>
+              <button type="button" class="btn-ghost" id="btn-onboard-avatar">Choose photo</button>
+            </div>
+            <input id="onboard-avatar-input" type="file" name="avatar" autocomplete="off" accept="image/png,image/jpeg,image/webp" hidden />
+          </div>
+
+          <div class="error-box" id="onboard-error" role="alert" hidden></div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-ghost" id="btn-onboard-skip">Save username only</button>
+            <button type="submit" class="btn-primary">Save profile</button>
+          </div>
+        </form>
+
+        <p class="onboarding-foot">Skipping a field is fine — you can add it later from Profile → Edit.</p>
+      </div>
+    </div>
+
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
       <header class="side-head">
@@ -375,9 +444,19 @@
 
         <footer class="composer">
           <p class="composer-notice is-hidden" id="composer-notice"></p>
+          <p class="typing-indicator is-hidden" id="typing-indicator"></p>
           <div class="composer-inner">
+            <div class="reply-bar is-hidden" id="reply-bar">
+              <div class="reply-preview">
+                <span class="reply-sender" id="reply-sender"></span>
+                <span class="reply-text" id="reply-text"></span>
+              </div>
+              <button type="button" class="reply-close" id="reply-cancel" title="Cancel reply">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
             <div class="mention-menu is-hidden" id="mention-menu" role="listbox"></div>
-            <textarea id="composer-input" rows="1" placeholder="Message the room…"></textarea>
+            <textarea id="composer-input" name="composer" rows="1" autocomplete="off" placeholder="Message the room…"></textarea>
             <button class="send-btn" id="btn-send" title="Send">
               <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
@@ -432,6 +511,19 @@
               <span>Delete</span>
             </button>
           </div>
+
+          <div class="security-card">
+            <div class="security-head">
+              <div>
+                <h4>Two-factor authentication</h4>
+                <p id="mfa-status-text">Loading security status…</p>
+              </div>
+            </div>
+            <div class="security-actions">
+              <button type="button" class="btn-ghost" id="btn-mfa-setup" hidden>Set up 2FA</button>
+              <button type="button" class="btn-ghost danger" id="btn-mfa-disable" hidden>Disable 2FA</button>
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -455,10 +547,19 @@
         </section>
 
         <section class="info-card">
+          <div class="card-head"><h4>Pinned</h4><span class="badge" id="pin-count">0</span></div>
+          <ul class="pin-list" id="pin-list"></ul>
+          <p class="dm-none" id="pin-empty">No pinned messages.</p>
+        </section>
+
+        <section class="info-card">
           <div class="card-head"><h4>Options</h4></div>
           <div class="option-list">
             <button class="option-btn" id="btn-invite">Invite members</button>
             <button class="option-btn" id="btn-edit-profile">Edit profile</button>
+            <button class="option-btn" id="btn-restore">Restore deleted chats</button>
+            <button class="option-btn danger is-hidden" id="btn-dissolve-room">Dissolve room</button>
+            <button class="option-btn danger" id="btn-delete-chat">Delete chat</button>
           </div>
         </section>
       </div>
@@ -480,7 +581,7 @@
         <form class="modal-form" id="room-form">
           <div class="field">
             <label for="room-name">Room name</label>
-            <input id="room-name" type="text" name="name" maxlength="80" placeholder="e.g. Product launch" required />
+            <input id="room-name" type="text" name="name" maxlength="80" autocomplete="off" placeholder="e.g. Product launch" required />
           </div>
 
           <div class="error-box" id="room-error" role="alert" hidden></div>
@@ -506,22 +607,27 @@
         <form class="modal-form" id="profile-form">
           <div class="field">
             <label for="profile-name">Display name</label>
-            <input id="profile-name" type="text" name="displayName" maxlength="80" required />
+            <input id="profile-name" type="text" name="displayName" maxlength="80" autocomplete="name" required />
           </div>
 
           <div class="field">
             <label for="profile-username">Username</label>
-            <input id="profile-username" type="text" name="username" maxlength="40" placeholder="optional" />
+            <input id="profile-username" type="text" name="username" maxlength="40" autocomplete="username" placeholder="optional" />
           </div>
 
           <div class="field">
             <label for="profile-status">Status</label>
-            <input id="profile-status" type="text" name="statusText" maxlength="120" placeholder="What are you working on?" />
+            <input id="profile-status" type="text" name="statusText" maxlength="120" autocomplete="off" placeholder="What are you working on?" />
+          </div>
+
+          <div class="field">
+            <label for="profile-dob">Date of birth</label>
+            <input id="profile-dob" type="date" name="dob" />
           </div>
 
           <div class="field">
             <label for="profile-avatar">Avatar</label>
-            <input id="profile-avatar" type="file" name="avatar" accept="image/png,image/jpeg,image/webp" />
+            <input id="profile-avatar" type="file" name="avatar" autocomplete="off" accept="image/png,image/jpeg,image/webp" />
           </div>
 
           <div class="error-box" id="profile-error" role="alert" hidden></div>
@@ -623,6 +729,51 @@
       </div>
     </dialog>
 
+    <!-- Two-Factor (MFA) Setup Dialog -->
+    <dialog class="modal" id="mfa-dialog">
+      <div class="modal-content">
+        <header class="modal-head">
+          <h3>Set up two-factor authentication</h3>
+          <button class="icon-btn" id="mfa-dialog-close" title="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </header>
+
+        <div class="mfa-step" id="mfa-step-enroll">
+          <p class="confirm-message">
+            Scan this code with your authenticator app (Google Authenticator, Authy, 1Password…),
+            then enter the 6-digit code it generates to confirm.
+          </p>
+          <div class="mfa-qr">
+            <img id="mfa-qr" alt="QR code to scan with your authenticator app" />
+          </div>
+          <p class="mfa-secret-label">Or enter this code manually:</p>
+          <p class="mfa-secret" id="mfa-secret"></p>
+          <div class="modal-actions">
+            <button type="button" class="btn-ghost" id="mfa-cancel">Cancel</button>
+            <button type="button" class="btn-primary" id="mfa-scanned">I've scanned the code</button>
+          </div>
+        </div>
+
+        <div class="mfa-step is-hidden" id="mfa-step-verify">
+          <p class="confirm-message">Enter the 6-digit code generated by your app to enable 2FA.</p>
+          <div class="otp-boxes" id="mfa-verify-boxes" aria-label="Two-factor verification code">
+            <input type="tel" id="mfa-verify-digit-0" name="mfav0" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1" />
+            <input type="tel" id="mfa-verify-digit-1" name="mfav1" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 2" />
+            <input type="tel" id="mfa-verify-digit-2" name="mfav2" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 3" />
+            <input type="tel" id="mfa-verify-digit-3" name="mfav3" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 4" />
+            <input type="tel" id="mfa-verify-digit-4" name="mfav4" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 5" />
+            <input type="tel" id="mfa-verify-digit-5" name="mfav5" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 6" />
+          </div>
+          <div class="error-box" id="mfa-setup-error" role="alert" hidden></div>
+          <div class="modal-actions">
+            <button type="button" class="btn-ghost" id="mfa-verify-back">Back</button>
+            <button type="button" class="btn-primary" id="btn-mfa-verify">Verify & enable</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
     <!-- Confirm Dialog (reusable: sign out, delete account, etc.) -->
     <dialog class="modal confirm-dialog" id="confirm-dialog">
       <div class="modal-content">
@@ -644,6 +795,22 @@
           <button type="button" class="btn-ghost" id="confirm-cancel">Cancel</button>
           <button type="button" class="btn-primary" id="confirm-ok">Confirm</button>
         </div>
+      </div>
+    </dialog>
+
+    <!-- Restore Deleted Chats Dialog -->
+    <dialog class="modal" id="restore-dialog">
+      <div class="modal-content">
+        <header class="modal-head">
+          <h3>Restore chats</h3>
+          <button class="icon-btn" id="restore-dialog-close" title="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </header>
+
+        <ul class="restore-list" id="restore-list"></ul>
+
+        <p class="dm-none" id="restore-empty">Nothing to restore.</p>
       </div>
     </dialog>
   </div>

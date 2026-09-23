@@ -8,9 +8,10 @@ import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
 import { showError, hideError, escapeHtml, avatarColor } from "../core/utils.js";
-import { showRoomChat, closeSidebar, closeInfo } from "../core/navigation.js";
-import { openRoom } from "./chat.js";
-import { getIdentity, createRoomKey, getRoomKey, shareRoomKey } from "../core/keyring.js";
+import { showRoomChat, closeSidebar, closeInfo, showHome } from "../core/navigation.js";
+import { showConfirm } from "../core/confirm.js";
+import { openRoom, closeRoom, getPins, getPresence, EVENTS, unpinMessage } from "./chat.js";
+import { getIdentity, createRoomKey, getRoomKey, shareRoomKey, canManageRoom } from "../core/keyring.js";
 
 const ROOM_PALETTE = [
   "#2563eb",
@@ -22,6 +23,66 @@ const ROOM_PALETTE = [
   "#059669",
   "#b45309",
 ];
+
+// Cached member rows + admin flag so presence/pin events re-render without a
+// fresh room_members query on every realtime heartbeat.
+let membersCache = [];
+let membersCacheRoomId = null;
+let membersCacheIsAdmin = false;
+
+function renderMembersList() {
+  if (!dom.memberList) return;
+  if (!membersCache.length) {
+    dom.memberList.innerHTML =
+      '<li style="color:var(--muted-2);font-size:13px">No members yet.</li>';
+    return;
+  }
+  if (dom.memberCount) dom.memberCount.textContent = String(membersCache.length);
+  const presence = getPresence();
+  const currentUserId = state.currentUser?.id;
+
+  dom.memberList.innerHTML = membersCache
+    .map((m) => {
+      const p = m.profiles || {};
+      const name = p.display_name || p.username || "Member";
+      const online = presence.has(m.user_id);
+      const isMe = m.user_id === currentUserId;
+      return `
+        <li>
+          <span class="member-avatar" style="background:${avatarColor(name)}">${escapeHtml(name.charAt(0).toUpperCase())}</span>
+          <span class="member-name">${escapeHtml(name)}${isMe ? " (you)" : ""}</span>
+          <span class="member-presence ${online ? "online" : "offline"}">${online ? "online" : "offline"}</span>
+        </li>`;
+    })
+    .join("");
+}
+
+function renderPinnedSection(roomId) {
+  if (!dom.pinList) return;
+  const pins = getPins();
+  if (dom.pinCount) dom.pinCount.textContent = String(pins.length);
+
+  if (!pins.length) {
+    dom.pinList.innerHTML = "";
+    if (dom.pinEmpty) dom.pinEmpty.hidden = false;
+    return;
+  }
+  if (dom.pinEmpty) dom.pinEmpty.hidden = true;
+  dom.pinList.innerHTML = pins
+    .map((pin) => {
+      const name =
+        (pin.sender && (pin.sender.display_name || pin.sender.username)) || "Member";
+      return `
+        <li class="pin-item">
+          <div class="pin-main">
+            <span class="pin-text">${escapeHtml(pin.text || "")}</span>
+            <span class="pin-meta">${escapeHtml(name)}</span>
+          </div>
+          ${membersCacheIsAdmin ? `<button type="button" class="pin-unpin" data-unpin="${pin.message_id}" title="Unpin">✕</button>` : ""}
+        </li>`;
+    })
+    .join("");
+}
 
 function renderRooms(filterText = "") {
   const filtered = state.rooms.filter((r) =>
@@ -67,38 +128,28 @@ function renderRooms(filterText = "") {
 }
 
 async function renderRoomInfo(room) {
-  if (!supabase) return;
+  if (!supabase || !room) return;
   if (dom.infoHeadSub) dom.infoHeadSub.textContent = "Room details";
   if (dom.memberList) dom.memberList.innerHTML = "";
   if (dom.memberCount) dom.memberCount.textContent = "0";
 
+  const isAdmin = await canManageRoom(room.id);
+  if (dom.btnDissolveRoom) {
+    dom.btnDissolveRoom.classList.toggle("is-hidden", !isAdmin);
+  }
+  membersCacheIsAdmin = isAdmin;
+
   const { data, error } = await supabase
     .from("room_members")
-    .select("profiles(display_name, username, status_text)")
+    .select("user_id, profiles(display_name, username, status_text)")
     .eq("room_id", room.id);
 
-  if (error || !dom.memberList) return;
+  if (error || state.currentRoomId !== room.id) return;
 
-  if (dom.memberCount) dom.memberCount.textContent = String(data.length);
-
-  if (!data.length) {
-    dom.memberList.innerHTML =
-      '<li style="color:var(--muted-2);font-size:13px">No members yet.</li>';
-    return;
-  }
-
-  dom.memberList.innerHTML = data
-    .map((m) => {
-      const p = m.profiles || {};
-      const name = p.display_name || p.username || "Member";
-      return `
-        <li>
-          <span class="member-avatar" style="background:${avatarColor(name)}">${escapeHtml(name.charAt(0).toUpperCase())}</span>
-          <span class="member-name">${escapeHtml(name)}</span>
-          <span class="member-presence online">online</span>
-        </li>`;
-    })
-    .join("");
+  membersCache = data || [];
+  membersCacheRoomId = room.id;
+  renderMembersList();
+  renderPinnedSection(room.id);
 }
 
 export function selectRoom(roomId) {
@@ -122,13 +173,15 @@ export async function loadRooms() {
   if (!supabase) return 0;
   const { data, error } = await supabase
     .from("room_members")
-    .select("joined_at, rooms(id, name, room_type, created_at)")
+    .select("joined_at, deleted_at, rooms(id, name, room_type, created_at, deleted_at)")
     .eq("user_id", state.currentUser.id)
     .order("joined_at", { ascending: false });
 
   if (error) return 0;
 
-  state.rooms = data.map((m) => m.rooms).filter(Boolean);
+  state.rooms = (data || [])
+    .filter((m) => !m.deleted_at && m.rooms && !m.rooms.deleted_at)
+    .map((m) => m.rooms);
   renderRooms();
 
   if (state.rooms.length > 0) {
@@ -474,9 +527,154 @@ function initInviteDialog() {
   });
 }
 
+// --- Delete / dissolve / restore -------------------------------------------
+
+async function leaveCurrentRoom(roomId) {
+  state.rooms = state.rooms.filter((r) => r.id !== roomId);
+  renderRooms();
+  if (state.currentRoomId === roomId) {
+    if (state.rooms.length > 0) {
+      selectRoom(state.rooms[0].id);
+    } else {
+      closeRoom();
+      showHome();
+    }
+  }
+}
+
+async function deleteChat() {
+  const room = currentRoom();
+  const roomId = state.currentRoomId;
+  if (!roomId || !room) return;
+
+  const ok = await showConfirm({
+    title: "Delete chat?",
+    message: `This removes "${room.name}" from your chat list. Members won't lose anything, and you can restore it later.`,
+    confirmLabel: "Delete chat",
+    cancelLabel: "Keep it",
+    danger: true,
+  });
+  if (!ok) return;
+
+  const { error } = await supabase.rpc("delete_chat", { target_room_id: roomId });
+  if (error) return;
+  await leaveCurrentRoom(roomId);
+}
+
+async function dissolveRoom() {
+  const room = currentRoom();
+  const roomId = state.currentRoomId;
+  if (!roomId || !room) return;
+
+  const confirmed = await showConfirm({
+    title: "Dissolve room?",
+    message: `This hides "${room.name}" for every member. Only you (as admin) can restore it.`,
+    confirmLabel: "Dissolve room",
+    cancelLabel: "Keep it",
+    danger: true,
+  });
+  if (!confirmed) return;
+
+  const { error } = await supabase.rpc("dissolve_room", { target_room_id: roomId });
+  if (error) return;
+  await leaveCurrentRoom(roomId);
+}
+
+function restoreItemHtml(room, kind) {
+  return `
+    <li class="restore-item">
+      <span class="room-avatar small" style="background:${avatarColor(room.name)}">${escapeHtml(
+    room.name.charAt(0).toUpperCase()
+  )}</span>
+      <span class="restore-name">${escapeHtml(room.name)}</span>
+      <button type="button" class="restore-restore-btn btn-ghost" data-room-id="${room.id}" data-kind="${kind}">Restore</button>
+    </li>`;
+}
+
+async function openRestoreDialog() {
+  if (!supabase || !state.currentUser) return;
+
+  dom.restoreList.innerHTML = "";
+  dom.restoreEmpty.hidden = true;
+
+  // Chats deleted by me (out of my list) and rooms dissolved by me.
+  const [mineRes, dissolvedRes] = await Promise.all([
+    supabase
+      .from("room_members")
+      .select("rooms(id, name)")
+      .eq("user_id", state.currentUser.id)
+      .not("deleted_at", "is", null),
+    supabase
+      .from("rooms")
+      .select("id, name, created_by")
+      .not("deleted_at", "is", null),
+  ]);
+
+  const items = [];
+  (mineRes.data || []).forEach((m) => {
+    if (m.rooms && !state.rooms.some((r) => r.id === m.rooms.id)) {
+      items.push(restoreItemHtml(m.rooms, "chat"));
+    }
+  });
+  (dissolvedRes.data || [])
+    .filter((r) => r.created_by === state.currentUser.id)
+    .forEach((r) => items.push(restoreItemHtml(r, "room")));
+
+  if (!items.length) {
+    dom.restoreList.innerHTML = "";
+    dom.restoreEmpty.hidden = false;
+  } else {
+    dom.restoreEmpty.hidden = true;
+    dom.restoreList.innerHTML = items.join("");
+  }
+
+  dom.restoreDialog.showModal();
+}
+
+async function restoreItem(roomId, kind) {
+  const rpc = kind === "chat" ? "restore_chat" : "restore_room";
+  const { error } = await supabase.rpc(rpc, { target_room_id: roomId });
+  if (error) return;
+  await openRestoreDialog();
+  await loadRooms();
+}
+
+function initRestoreAndDanger() {
+  dom.btnDeleteChat?.addEventListener("click", deleteChat);
+  dom.btnDissolveRoom?.addEventListener("click", dissolveRoom);
+  dom.btnRestore?.addEventListener("click", openRestoreDialog);
+  dom.restoreDialogClose?.addEventListener("click", () => dom.restoreDialog.close());
+  dom.restoreList?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-room-id]");
+    if (!btn) return;
+    restoreItem(btn.dataset.roomId, btn.dataset.kind);
+  });
+}
+
+function initInfoActions() {
+  dom.pinList?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-unpin]");
+    if (!btn) return;
+    unpinMessage(state.currentRoomId, btn.dataset.unpin);
+  });
+
+  window.addEventListener(EVENTS.pins, () => {
+    if (membersCacheRoomId === state.currentRoomId && state.currentRoomId) {
+      renderPinnedSection(state.currentRoomId);
+    }
+  });
+  window.addEventListener(EVENTS.presence, () => {
+    if (membersCacheRoomId === state.currentRoomId && state.currentRoomId) {
+      renderMembersList();
+    }
+  });
+}
+
 export function initRooms() {
   initRoomDialog();
   initDmDialog();
   initInviteDialog();
   initSidebar();
+  initRestoreAndDanger();
+  initInfoActions();
 }

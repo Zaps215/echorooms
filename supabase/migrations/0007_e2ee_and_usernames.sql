@@ -215,10 +215,13 @@ begin
   if found is null then
     insert into public.rooms (name, room_type, created_by)
     values (
-      coalesce(
-        nullif(trim((select display_name from public.profiles where id = other_user_id)), ''),
-        (select username from public.profiles where id = other_user_id),
-        'Direct'
+      left(
+        coalesce(
+          nullif(trim((select display_name from public.profiles where id = other_user_id)), ''),
+          (select username from public.profiles where id = other_user_id),
+          'Direct'
+        ),
+        80
       ),
       'direct',
       me
