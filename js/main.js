@@ -9,7 +9,7 @@
 import "../css/styles.css";
 import { supabase, isSupabaseConfigured } from "./core/supabase.js";
 import { state, resetAppState } from "./core/state.js";
-import { switchAuthForm, showAppShell, showAuthShell, initNavigation } from "./core/navigation.js";
+import { switchAuthForm, showAppShell, showAuthShell, initNavigation, initBottomNav } from "./core/navigation.js";
 import { initConfirm } from "./core/confirm.js";
 import { ensureIdentity, resetKeyring } from "./core/keyring.js";
 import * as dom from "./core/dom.js";
@@ -25,6 +25,7 @@ import { initMfa, requireMfaIfNeeded } from "./features/mfa.js";
 
 // --- Feature wiring (listener setup only) ---
 initNavigation();
+initBottomNav();
 initConfirm();
 initAuth();
 initOtp();

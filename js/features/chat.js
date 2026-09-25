@@ -9,15 +9,29 @@ import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
 import { escapeHtml } from "../core/utils.js";
-import { closeInfo, openSidebar } from "../core/navigation.js";
+import { closeInfo, openSidebar, showHome } from "../core/navigation.js";
 import { showConfirm } from "../core/confirm.js";
 import { getRoomKey, ensureRoomKey, canManageRoom, shareMissingKeys } from "../core/keyring.js";
 import * as crypto from "../core/crypto.js";
+import {
+  isAllowedFile,
+  isImageFile,
+  isImageMime,
+  formatBytes,
+  documentIcon,
+  uploadRoomFile,
+  deleteRoomFiles,
+  decryptAttachment,
+  MAX_FILE_BYTES,
+} from "./media.js";
 
 const PAGE_SIZE = 30;
 
 const MESSAGE_COLUMNS =
   "id, room_id, sender_id, body, iv, ciphertext, reply_to_id, edited_at, deleted_at, created_at, profiles(display_name, username)";
+
+const ATTACHMENT_COLUMNS =
+  "id, room_id, message_id, sender_id, name, mime_type, size_bytes, storage_path, iv, created_at";
 
 // Emoji palette used by the reaction picker.
 export const REACTION_EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "💯"];
@@ -36,9 +50,25 @@ let editingId = null;
 let activeRoomKey = null;
 let isAdminRoom = false;
 
+// Optional per-room "disappearing messages" window (ms). When set, messages
+// older than this render as deleted and the server row is expired in the
+// background so the ciphertext is removed for everyone.
+let disappearAfterMs = 0;
+let disappearTimer = 0;
+
 // Ids of messages we just sent; realtime echoes for these are ignored because
 // the insert response already rendered them.
 const recentSends = new Set();
+
+// --- Media (attachment) state ----------------------------------------------
+
+// messageId -> array of attachment rows for messages in the current window.
+let attachmentCache = new Map();
+// attachmentId -> decrypted object URL, kept across re-renders so we decrypt
+// each file once and just swap the URL back in.
+const remoteUrlCache = new Map();
+// Files the user has picked in the composer but not sent yet.
+let pendingMedia = [];
 
 // --- Reaction Service state ------------------------------------------------
 
@@ -91,7 +121,7 @@ async function decryptMessageContent(msg) {
   }
 }
 
-function setComposerNotice(text) {
+export function setComposerNotice(text) {
   if (!dom.composerNotice) return;
   if (text) {
     dom.composerNotice.textContent = text;
@@ -100,6 +130,66 @@ function setComposerNotice(text) {
     dom.composerNotice.classList.add("is-hidden");
     dom.composerNotice.textContent = "";
   }
+}
+
+// --- Disappearing messages --------------------------------------------------
+
+function resetRoomDisappear() {
+  clearInterval(disappearTimer);
+  disappearTimer = 0;
+  disappearAfterMs = 0;
+}
+
+async function runRoomExpire() {
+  const roomId = state.currentRoomId;
+  if (!roomId || !disappearAfterMs || !supabase) return;
+  try {
+    await supabase.rpc("expire_room_messages", { target_room_id: roomId });
+  } catch (err) {
+    // Best-effort: the visual filter below still hides expired messages even
+    // if the background cleanup call fails.
+  }
+  renderMessages();
+}
+
+/** Enables/disables disappearing messages for the active room (seconds). */
+export function setRoomDisappear(seconds) {
+  resetRoomDisappear();
+  disappearAfterMs = Number(seconds) > 0 ? Number(seconds) * 1000 : 0;
+  if (!disappearAfterMs) {
+    renderMessages();
+    return;
+  }
+  runRoomExpire();
+  disappearTimer = setInterval(runRoomExpire, 60000);
+}
+
+// --- Local "clear chat for me" ----------------------------------------------
+
+function localClearCut(roomId) {
+  try {
+    return Number(localStorage.getItem(`echorooms:cleared:${roomId}`)) || 0;
+  } catch (err) {
+    return 0;
+  }
+}
+
+function isClearedOut(roomId, createdAt) {
+  const cut = localClearCut(roomId);
+  return cut > 0 && new Date(createdAt).getTime() < cut;
+}
+
+/** Hides this room's messages on this device only (persisted per room). */
+export function clearLocalMessages(roomId) {
+  try {
+    localStorage.setItem(`echorooms:cleared:${roomId}`, String(Date.now()));
+  } catch (err) {
+    /* private mode: fall back to session-only below */
+  }
+  const cut = localClearCut(roomId);
+  state.currentRoomId = roomId;
+  state.messages = state.messages.filter((m) => new Date(m.created_at).getTime() >= cut);
+  renderMessages();
 }
 
 async function listMessages(roomId, before) {
@@ -136,6 +226,64 @@ async function loadMembers(roomId) {
   const map = new Map();
   (data || []).forEach((m) => map.set(m.user_id, m.profiles || {}));
   memberCache.set(roomId, map);
+}
+
+// --- Attachments -----------------------------------------------------------
+
+async function loadAttachments(roomId, messages) {
+  if (!supabase) return;
+  const ids = (messages || []).map((m) => m.id).filter(Boolean);
+  if (!ids.length) return;
+
+  const { data, error } = await supabase
+    .from("attachments")
+    .select(ATTACHMENT_COLUMNS)
+    .eq("room_id", roomId)
+    .in("message_id", ids);
+  if (error || !data) return;
+
+  // Merge so paginated loads never drop attachments from earlier pages.
+  const merged = new Map(attachmentCache);
+  for (const att of data) {
+    const list = merged.get(att.message_id) || [];
+    if (!list.some((a) => a.id === att.id)) list.push(att);
+    merged.set(att.message_id, list);
+  }
+  attachmentCache = merged;
+}
+
+function currentAttachmentById(id) {
+  for (const list of attachmentCache.values()) {
+    const found = list.find((a) => a.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function revokeRemoteUrls() {
+  remoteUrlCache.forEach((url) => URL.revokeObjectURL(url));
+  remoteUrlCache.clear();
+}
+
+function onAttachmentInsert(row) {
+  if (state.currentRoomId !== row.room_id) return;
+  const list = attachmentCache.get(row.message_id) || [];
+  if (!list.some((a) => a.id === row.id)) list.push(row);
+  attachmentCache.set(row.message_id, list);
+  renderMessages();
+}
+
+function onAttachmentDelete(row) {
+  if (state.currentRoomId !== row.room_id) return;
+  const next = (attachmentCache.get(row.message_id) || []).filter((a) => a.id !== row.id);
+  if (next.length) attachmentCache.set(row.message_id, next);
+  else attachmentCache.delete(row.message_id);
+  const url = remoteUrlCache.get(row.id);
+  if (url) {
+    URL.revokeObjectURL(url);
+    remoteUrlCache.delete(row.id);
+  }
+  renderMessages();
 }
 
 async function sendMessage(roomId, body) {
@@ -203,6 +351,402 @@ async function sendMessage(roomId, body) {
   }
 }
 
+// --- Media send flow -------------------------------------------------------
+
+function makePendingMediaMessage(roomId, file, caption) {
+  return {
+    id: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    room_id: roomId,
+    sender_id: state.currentUser?.id,
+    body: caption,
+    iv: null,
+    ciphertext: null,
+    reply_to_id: replyTarget ? replyTarget.id : null,
+    edited_at: null,
+    deleted_at: null,
+    created_at: new Date().toISOString(),
+    sender: memberCache.get(roomId)?.get(state.currentUser?.id) || null,
+    status: "sending",
+    media: [{ file }],
+  };
+}
+
+function markMediaFailed(pending) {
+  const target = state.messages.find((m) => m.id === pending.id);
+  if (target) {
+    target.status = "failed";
+    target.media = pending.media;
+  }
+  renderMessages({ stickToBottom: true });
+}
+
+/**
+ * Sends an attachment message: message row (optionally with the encrypted
+ * caption), E2EE file upload, then the attachments row. One message per file.
+ */
+async function sendMediaMessages(roomId, caption) {
+  let key = activeRoomKey;
+  if (!key) {
+    key = await ensureRoomKey(roomId);
+    activeRoomKey = key;
+    if (!key) {
+      setComposerNotice(
+        (await canManageRoom(roomId))
+          ? "Your encryption key couldn't be created. Try again."
+          : NO_KEY_TEXT
+      );
+      return;
+    }
+  }
+
+  const files = pendingMedia.map((item) => item.file);
+  if (!files.length) return;
+
+  const pendingRows = files.map((file, i) =>
+    makePendingMediaMessage(roomId, file, i === 0 ? caption : null)
+  );
+
+  // Release the composer's local preview URLs; the pending messages keep the
+  // File references so retries and local previews keep working.
+  pendingMedia.forEach((item) => {
+    if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+  });
+  pendingMedia = [];
+  renderAttachPreview();
+
+  pendingRows.forEach((p) => state.messages.push(p));
+  renderMessages({ stickToBottom: true });
+  renderAttachProgress(
+    `Uploading ${pendingRows.length} file${pendingRows.length > 1 ? "s" : ""}…`
+  );
+
+  for (let i = 0; i < files.length; i += 1) {
+    const pending = pendingRows[i];
+    const file = files[i];
+
+    if (state.currentRoomId !== roomId) return;
+
+    try {
+      let encryptedCaption = null;
+      if (pending.body) {
+        encryptedCaption = await crypto.encryptMessage(key, pending.body);
+      }
+
+      const { data, error } = await supabase
+        .from("messages")
+        .insert({
+          room_id: roomId,
+          sender_id: state.currentUser.id,
+          iv: encryptedCaption?.iv || null,
+          ciphertext: encryptedCaption?.ct || null,
+          body: null,
+          reply_to_id: pending.reply_to_id,
+        })
+        .select(MESSAGE_COLUMNS)
+        .single();
+
+      if (error || !data) {
+        markMediaFailed(pending);
+        continue;
+      }
+
+      const meta = await uploadRoomFile(roomId, state.currentUser.id, file, key);
+
+      const { data: attRow, error: attError } = await supabase
+        .from("attachments")
+        .insert({
+          room_id: roomId,
+          message_id: data.id,
+          sender_id: state.currentUser.id,
+          name: file.name || "file",
+          mime_type: file.type || "application/octet-stream",
+          size_bytes: meta.size_bytes,
+          storage_path: meta.storage_path,
+          iv: meta.iv,
+        })
+        .select("id")
+        .single();
+
+      if (attError || !attRow) {
+        await deleteRoomFiles([meta.storage_path]);
+        markMediaFailed(pending);
+        continue;
+      }
+
+      const row = normalize(data);
+      row.body = pending.body || null; // plaintext caption we just encrypted
+      recentSends.add(row.id);
+      const index = state.messages.findIndex((m) => m.id === pending.id);
+      if (index !== -1) {
+        state.messages.splice(index, 1, row);
+        const list = attachmentCache.get(row.id) || [];
+        list.push({
+          id: attRow.id,
+          room_id: roomId,
+          message_id: row.id,
+          sender_id: state.currentUser.id,
+          name: file.name || "file",
+          mime_type: file.type || "application/octet-stream",
+          size_bytes: meta.size_bytes,
+          storage_path: meta.storage_path,
+          iv: meta.iv,
+        });
+        attachmentCache.set(row.id, list);
+      }
+      renderMessages({ stickToBottom: true });
+    } catch (err) {
+      markMediaFailed(pending);
+    }
+  }
+
+  renderAttachProgress("");
+  setComposerNotice("");
+}
+
+// --- Composer attachment preview -------------------------------------------
+
+function renderAttachPreview() {
+  if (!dom.attachPreviewList) return;
+  if (!pendingMedia.length) {
+    dom.attachPreview?.classList.add("is-hidden");
+    dom.attachPreviewList.innerHTML = "";
+    return;
+  }
+  dom.attachPreview.classList.remove("is-hidden");
+  dom.attachPreviewList.innerHTML = pendingMedia
+    .map((item, i) => {
+      const file = item.file;
+      const icon = isImageFile(file)
+        ? `<img class="attach-chip-img" data-chip-img="${i}" alt="">`
+        : `<span class="attach-chip-icon">${documentIcon(file.type)}</span>`;
+      return `
+        <li class="attach-chip">
+          ${icon}
+          <span class="attach-chip-main">
+            <span class="attach-chip-name">${escapeHtml(file.name)}</span>
+            <span class="attach-chip-meta">${formatBytes(file.size)}</span>
+          </span>
+          <button type="button" class="attach-chip-remove" data-remove-attach="${i}" aria-label="Remove file" title="Remove">✕</button>
+        </li>`;
+    })
+    .join("");
+
+  document.querySelectorAll("[data-chip-img]").forEach((img) => {
+    const item = pendingMedia[Number(img.dataset.chipImg)];
+    if (item?.previewUrl) img.src = item.previewUrl;
+  });
+}
+
+function renderAttachProgress(text) {
+  if (!dom.attachProgress) return;
+  if (text) {
+    dom.attachProgress.textContent = text;
+    dom.attachProgress.classList.remove("is-hidden");
+  } else {
+    dom.attachProgress.classList.add("is-hidden");
+    dom.attachProgress.textContent = "";
+  }
+}
+
+function addPendingFiles(files) {
+  let added = 0;
+  for (const file of files || []) {
+    if (!isAllowedFile(file)) {
+      setComposerNotice(`"${file.name}" isn't a supported file type.`);
+      continue;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      setComposerNotice(`"${file.name}" is larger than ${formatBytes(MAX_FILE_BYTES)}.`);
+      continue;
+    }
+    pendingMedia.push({ file, previewUrl: URL.createObjectURL(file) });
+    added += 1;
+  }
+  if (added) setComposerNotice("");
+  renderAttachPreview();
+}
+
+function removePendingFile(index) {
+  const item = pendingMedia[index];
+  if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl);
+  pendingMedia.splice(index, 1);
+  renderAttachPreview();
+}
+
+function clearPendingMedia() {
+  pendingMedia.forEach((item) => {
+    if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+  });
+  pendingMedia = [];
+  renderAttachPreview();
+  renderAttachProgress("");
+}
+
+async function downloadAttachment(att) {
+  if (!att) return;
+  try {
+    const blob = await decryptAttachment(att, activeRoomKey);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = att.name || "download";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (error) {
+    setComposerNotice("Couldn't download that file. Try again.");
+  }
+}
+
+// --- Camera capture --------------------------------------------------------
+
+let cameraStream = null;
+
+async function startCameraCapture() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setComposerNotice("Camera isn't supported by this browser.");
+    return;
+  }
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+  } catch (err) {
+    setComposerNotice(
+      err?.name === "NotAllowedError"
+        ? "Camera permission was denied. Allow it in your browser settings."
+        : "Couldn't start the camera. Try again."
+    );
+    return;
+  }
+  dom.cameraOverlay?.classList.remove("is-hidden");
+  if (dom.cameraPreview) {
+    dom.cameraPreview.srcObject = cameraStream;
+    dom.cameraPreview.play().catch(() => {});
+  }
+  if (dom.cameraHint) dom.cameraHint.textContent = "";
+}
+
+function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach((t) => t.stop());
+    cameraStream = null;
+  }
+  if (dom.cameraPreview) dom.cameraPreview.srcObject = null;
+  dom.cameraOverlay?.classList.add("is-hidden");
+}
+
+async function capturePhoto() {
+  const video = dom.cameraPreview;
+  if (!video || !video.videoWidth) return;
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+  stopCamera();
+  if (!blob) return;
+  const stamp = new Date().toLocaleTimeString().replace(/[:]/g, "").replace(/\s/g, "");
+  addPendingFiles([new File([blob], `Photo ${stamp}.jpg`, { type: "image/jpeg" })]);
+}
+
+// --- Voice message recording ------------------------------------------------
+
+let mediaRecorder = null;
+let mediaChunks = [];
+let voiceStream = null;
+let voiceTimerId = 0;
+let voiceStart = 0;
+
+function formatVoiceTime(ms) {
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function updateVoiceTimer() {
+  if (dom.voiceTimer) dom.voiceTimer.textContent = formatVoiceTime(Date.now() - voiceStart);
+}
+
+async function startVoiceRecording() {
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    setComposerNotice("Voice messages aren't supported by this browser.");
+    return;
+  }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    setComposerNotice(
+      err?.name === "NotAllowedError"
+        ? "Microphone permission was denied. Allow it in your browser settings."
+        : "Couldn't access the microphone. Try again."
+    );
+    return;
+  }
+
+  mediaChunks = [];
+  voiceStream = stream;
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size) mediaChunks.push(e.data);
+  };
+  mediaRecorder.onstop = () => {
+    voiceStream?.getTracks().forEach((t) => t.stop());
+    voiceStream = null;
+    const mime = (mediaRecorder?.mimeType || "audio/webm").split(";")[0].trim();
+    const blob = new Blob(mediaChunks, { type: mime });
+    mediaRecorder = null;
+    mediaChunks = [];
+    stopVoiceUi();
+    if (blob.size) {
+      const ext = mime.includes("mp4") ? "m4a" : mime.includes("mpeg") ? "mp3" : "webm";
+      const stamp = new Date().toLocaleTimeString().replace(/[:]/g, "").replace(/\s/g, "");
+      addPendingFiles([new File([blob], `Voice ${stamp}.${ext}`, { type: mime })]);
+    }
+  };
+
+  mediaRecorder.start();
+  voiceStart = Date.now();
+  updateVoiceTimer();
+  voiceTimerId = setInterval(updateVoiceTimer, 1000);
+  dom.voiceBar?.classList.remove("is-hidden");
+  dom.btnMic?.classList.add("recording");
+}
+
+function stopVoiceRecording() {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+  }
+}
+
+function stopVoiceUi() {
+  clearInterval(voiceTimerId);
+  voiceTimerId = 0;
+  dom.voiceBar?.classList.add("is-hidden");
+  dom.btnMic?.classList.remove("recording");
+}
+
+// Voice messages are discarded entirely (nothing recorded at all).
+function cancelVoiceRecording() {
+  if (!mediaRecorder) return;
+  mediaRecorder.onstop = () => {
+    voiceStream?.getTracks().forEach((t) => t.stop());
+    voiceStream = null;
+    mediaRecorder = null;
+    mediaChunks = [];
+    stopVoiceUi();
+  };
+  try {
+    mediaRecorder.ondataavailable = () => {};
+    mediaRecorder.stop();
+  } catch (err) {
+    stopVoiceUi();
+  }
+}
+
 async function editMessage(messageId, body) {
   if (!activeRoomKey) {
     return { error: { message: "no key" } };
@@ -255,6 +799,16 @@ function subscribeToRoom(roomId) {
       "postgres_changes",
       { event: "DELETE", schema: "public", table: "message_reactions", filter: `room_id=eq.${roomId}` },
       (payload) => onReactionDelete(payload.old)
+    )
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "attachments", filter: `room_id=eq.${roomId}` },
+      (payload) => onAttachmentInsert(payload.new)
+    )
+    .on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "attachments", filter: `room_id=eq.${roomId}` },
+      (payload) => onAttachmentDelete(payload.old)
     )
     .on(
       "postgres_changes",
@@ -684,6 +1238,8 @@ function messageHtml(msg) {
     ? '<span class="bubble-pin" title="Pinned message">📌</span>'
     : "";
 
+  const attachHtml = deleted ? "" : renderAttachmentsBlock(msg);
+
   return `
     <div class="msg ${own ? "own" : "other"}" data-id="${msg.id}">
       ${
@@ -703,10 +1259,113 @@ function messageHtml(msg) {
         ${sender}
         ${replyQuote}
         <span class="bubble-text ${pinned ? "is-pinned" : ""}">${pinItem}${text}</span>
+        ${attachHtml}
         <span class="bubble-meta">${formatTime(msg.created_at)}${edited}${status}</span>
       </div>
       ${deleted || msg.status === "sending" || msg.status === "failed" ? "" : messageActionsHtml(msg)}
     </div>`;
+}
+
+function pendingMediaHtml(msg) {
+  const media = msg.media || [];
+  return media
+    .map((item, i) => {
+      const file = item.file;
+      const name = file?.name || "File";
+      const key = `${msg.id}:${i}`;
+      if (isImageFile(file)) {
+        return `
+          <div class="attach-media">
+            <img class="attach-img" data-pending-img="${key}" alt="${escapeHtml(name)}">
+            <span class="attach-loading"><span class="spinner-ring"></span></span>
+          </div>
+          <div class="attach-meta-row"><span>${escapeHtml(name)}</span><span>${formatBytes(file.size)}</span></div>`;
+      }
+      return `
+        <div class="attach-file">
+          <span class="attach-file-icon">${documentIcon(file.type)}</span>
+          <span class="attach-file-main">
+            <span class="attach-file-name">${escapeHtml(name)}</span>
+            <span class="attach-file-meta">${formatBytes(file.size)}</span>
+          </span>
+          <span class="attach-pending-mark">uploading…</span>
+        </div>`;
+    })
+    .join("");
+}
+
+function renderAttachmentsBlock(msg) {
+  // Outgoing messages that haven't reached the server yet render local previews
+  // straight from the File objects held on the pending message.
+  if (msg.status === "sending" || msg.status === "failed") {
+    return pendingMediaHtml(msg);
+  }
+
+  const attaches = (attachmentCache.get(msg.id) || []).filter((a) => !msg.deleted_at);
+  if (!attaches.length) return "";
+
+  return attaches
+    .map((att) => {
+      if (isImageMime(att.mime_type)) {
+        return `
+          <div class="attach-media">
+            <button type="button" class="attach-img-btn" data-attach-open="${att.id}" title="Open image">
+              <img class="attach-img" data-attach-img="${att.id}" alt="${escapeHtml(att.name)}">
+              <span class="attach-loading"><span class="spinner-ring"></span></span>
+            </button>
+            <div class="attach-meta-row"><span>${escapeHtml(att.name)}</span><span>${formatBytes(att.size_bytes)}</span></div>
+          </div>`;
+      }
+      return `
+        <div class="attach-file" data-attach-download="${att.id}" title="Download ${escapeHtml(att.name)}">
+          <span class="attach-file-icon">${documentIcon(att.mime_type)}</span>
+          <span class="attach-file-main">
+            <span class="attach-file-name">${escapeHtml(att.name)}</span>
+            <span class="attach-file-meta">${formatBytes(att.size_bytes)} — tap to download</span>
+          </span>
+        </div>`;
+    })
+    .join("");
+}
+
+/** Decrypts attachments after a render and swaps in real object URLs. */
+function hydrateAttachments() {
+  // Pending previews come from the File objects still held on the message.
+  document.querySelectorAll("[data-pending-img]").forEach((img) => {
+    const [msgId, idx] = img.dataset.pendingImg.split(":");
+    const msg = state.messages.find((m) => m.id === msgId);
+    const file = msg?.media?.[Number(idx)]?.file;
+    if (!file) return;
+    img.src = URL.createObjectURL(file);
+    img.closest(".attach-media")?.querySelector(".attach-loading")?.remove();
+  });
+
+  document.querySelectorAll("[data-attach-img]").forEach((img) => {
+    const id = img.dataset.attachImg;
+    const cached = remoteUrlCache.get(id);
+    if (cached) {
+      img.src = cached;
+      img.closest(".attach-media")?.querySelector(".attach-loading")?.remove();
+      return;
+    }
+    const att = currentAttachmentById(id);
+    if (!att) return;
+    decryptAttachment(att, activeRoomKey)
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        remoteUrlCache.set(id, url);
+        const el = document.querySelector(`[data-attach-img="${id}"]`);
+        if (el) {
+          el.src = url;
+          el.closest(".attach-media")?.querySelector(".attach-loading")?.remove();
+        }
+      })
+      .catch(() => {
+        const el = document.querySelector(`[data-attach-img="${id}"]`);
+        const loading = el?.closest(".attach-media")?.querySelector(".attach-loading");
+        if (loading) loading.textContent = "Can't load";
+      });
+  });
 }
 
 function messageActionsHtml(msg) {
@@ -762,17 +1421,31 @@ function renderMessages({ stickToBottom = false } = {}) {
 
   let html = "";
   let currentDay = "";
+  const renderNow = Date.now();
+  const roomId = state.currentRoomId;
 
   state.messages.forEach((msg) => {
+    if (roomId && isClearedOut(roomId, msg.created_at)) return;
     const day = new Date(msg.created_at).toDateString();
     if (day !== currentDay) {
       currentDay = day;
       html += `<div class="day-divider"><span>${dayLabel(msg.created_at)}</span></div>`;
     }
+    // Disappearing messages expire visually here; the background RPC removes
+    // the server copy (and ciphertext) shortly after.
+    const expired =
+      disappearAfterMs > 0 &&
+      !msg.deleted_at &&
+      renderNow - new Date(msg.created_at).getTime() > disappearAfterMs;
+    if (expired) {
+      html += messageHtml({ ...msg, deleted_at: new Date().toISOString(), body: null });
+      return;
+    }
     html += messageHtml(msg);
   });
 
   el.innerHTML = html;
+  hydrateAttachments();
 
   if (stickToBottom) {
     scrollToBottom();
@@ -861,6 +1534,21 @@ async function onDeleteMessage(message) {
   });
   if (!confirmed) return;
 
+  // Remove the ciphertext + metadata for any files attached to this message.
+  const attaches = attachmentCache.get(message.id) || [];
+  for (const att of attaches) {
+    const url = remoteUrlCache.get(att.id);
+    if (url) {
+      URL.revokeObjectURL(url);
+      remoteUrlCache.delete(att.id);
+    }
+  }
+  if (attaches.length) {
+    await deleteRoomFiles(attaches.map((a) => a.storage_path));
+    await supabase.from("attachments").delete().eq("message_id", message.id);
+    attachmentCache.delete(message.id);
+  }
+
   const { error } = await deleteMessage(message.id);
   if (error) return;
 
@@ -875,7 +1563,17 @@ async function onDeleteMessage(message) {
 function onRetry(message) {
   const index = state.messages.findIndex((m) => m.id === message.id);
   if (index !== -1) state.messages.splice(index, 1);
-  sendMessage(message.room_id, message.body);
+
+  if (message.media && message.media.length) {
+    pendingMedia = message.media.map((item) => ({
+      file: item.file,
+      previewUrl: item.previewUrl || URL.createObjectURL(item.file),
+    }));
+    renderAttachPreview();
+    sendMediaMessages(message.room_id, message.body);
+  } else {
+    sendMessage(message.room_id, message.body);
+  }
 }
 
 function closePicker() {
@@ -936,6 +1634,19 @@ function handleMessagesClick(event) {
   const message = state.messages.find((m) => m.id === msgEl.dataset.id);
   if (!message) return;
 
+  const attachOpen = event.target.closest("[data-attach-open]");
+  if (attachOpen) {
+    const url = remoteUrlCache.get(attachOpen.dataset.attachOpen);
+    if (url) window.open(url, "_blank", "noopener");
+    return;
+  }
+
+  const attachDownload = event.target.closest("[data-attach-download]");
+  if (attachDownload) {
+    downloadAttachment(currentAttachmentById(attachDownload.dataset.attachDownload));
+    return;
+  }
+
   if (event.target.closest("[data-edit-cancel]")) {
     editingId = null;
     renderMessages();
@@ -981,8 +1692,13 @@ async function loadOlderMessages() {
 
   for (const msg of older) await decryptMessageContent(msg);
   await loadReactions(roomId, older);
-  if (older.length < PAGE_SIZE) state.hasMoreMessages = false;
-  state.messages = older.concat(state.messages);
+  await loadAttachments(roomId, older);
+  const cut = localClearCut(roomId);
+  const kept = cut
+    ? older.filter((m) => new Date(m.created_at).getTime() >= cut)
+    : older;
+  if (kept.length < PAGE_SIZE) state.hasMoreMessages = false;
+  state.messages = kept.concat(state.messages);
   state.messagesLoading = false;
 
   renderMessages();
@@ -1000,6 +1716,10 @@ export async function openRoom(roomId) {
   state.hasMoreMessages = true;
   reactionCache = new Map();
   pinsCache = [];
+  resetRoomDisappear();
+  revokeRemoteUrls();
+  attachmentCache = new Map();
+  clearPendingMedia();
   replyTarget = null;
   renderReplyBar();
   typingUsers.clear();
@@ -1012,36 +1732,53 @@ export async function openRoom(roomId) {
   renderMessages();
   setComposerNotice("");
 
-  await loadMembers(roomId);
+  try {
+    await loadMembers(roomId);
 
-  const isAdmin = await canManageRoom(roomId);
-  isAdminRoom = isAdmin;
-  if (isAdmin) {
-    activeRoomKey = await ensureRoomKey(roomId);
-    await shareMissingKeys(roomId);
-  } else {
-    activeRoomKey = await getRoomKey(roomId);
+    const isAdmin = await canManageRoom(roomId);
+    isAdminRoom = isAdmin;
+    if (isAdmin) {
+      activeRoomKey = await ensureRoomKey(roomId);
+      await shareMissingKeys(roomId);
+    } else {
+      activeRoomKey = await getRoomKey(roomId);
+    }
+
+    const messages = await listMessages(roomId);
+
+    // The user may have switched rooms while history was loading.
+    if (state.currentRoomId !== roomId) return;
+
+    for (const msg of messages) await decryptMessageContent(msg);
+
+    // Drop messages this user previously cleared locally ("clear chat for me").
+    const cut = localClearCut(roomId);
+    state.messages = cut
+      ? messages.filter((m) => new Date(m.created_at).getTime() >= cut)
+      : messages;
+    state.hasMoreMessages = messages.length === PAGE_SIZE;
+    state.messagesLoading = false;
+    await loadReactions(roomId, messages);
+    await loadPins(roomId);
+    await loadAttachments(roomId, messages);
+    renderMessages({ stickToBottom: true });
+
+    if (!activeRoomKey) {
+      setComposerNotice(isAdmin ? "No encryption key is available for this room." : NO_KEY_TEXT);
+    }
+
+    subscribeToRoom(roomId);
+  } catch (error) {
+    // A room-key or decryption failure must never hang the chat or surface an
+    // unhandled rejection: end the loading state and explain what happened.
+    if (state.currentRoomId !== roomId) return;
+    state.messages = [];
+    state.messagesLoading = false;
+    renderMessages();
+    setComposerNotice(
+      "Messages couldn't be loaded for this chat — this device doesn't hold the room key yet. Ask the room admin to invite you again or re-share the key."
+    );
   }
-
-  const messages = await listMessages(roomId);
-
-  // The user may have switched rooms while history was loading.
-  if (state.currentRoomId !== roomId) return;
-
-  for (const msg of messages) await decryptMessageContent(msg);
-
-  state.messages = messages;
-  state.hasMoreMessages = messages.length === PAGE_SIZE;
-  state.messagesLoading = false;
-  await loadReactions(roomId, messages);
-  await loadPins(roomId);
-  renderMessages({ stickToBottom: true });
-
-  if (!activeRoomKey) {
-    setComposerNotice(isAdmin ? "No encryption key is available for this room." : NO_KEY_TEXT);
-  }
-
-  subscribeToRoom(roomId);
 }
 
 export function closeRoom() {
@@ -1053,6 +1790,12 @@ export function closeRoom() {
   state.currentRoomId = null;
   reactionCache = new Map();
   pinsCache = [];
+  resetRoomDisappear();
+  revokeRemoteUrls();
+  attachmentCache = new Map();
+  clearPendingMedia();
+  stopCamera();
+  cancelVoiceRecording();
   replyTarget = null;
   renderReplyBar();
   typingUsers.clear();
@@ -1063,6 +1806,7 @@ export function closeRoom() {
   closePicker();
   hideMentionMenu();
   setComposerNotice("");
+  window.dispatchEvent(new CustomEvent("echorooms:room-closed"));
 }
 
 // --- Mention autocomplete --------------------------------------------------
@@ -1165,13 +1909,19 @@ function initComposer() {
   const send = () => {
     const roomId = state.currentRoomId;
     const body = dom.composerInput.value.trim();
-    if (!roomId || !body || !supabase) return;
+    const hasMedia = pendingMedia.length > 0;
+    if (!roomId || (!body && !hasMedia) || !supabase) return;
 
+    const sendCaption = body;
     dom.composerInput.value = "";
     autoGrow(dom.composerInput);
     hideMentionMenu();
     broadcastTyping(false);
-    sendMessage(roomId, body);
+    if (hasMedia) {
+      sendMediaMessages(roomId, sendCaption);
+    } else {
+      sendMessage(roomId, body);
+    }
   };
 
   dom.btnSend?.addEventListener("click", send);
@@ -1193,6 +1943,35 @@ function initComposer() {
   dom.composerInput?.addEventListener("blur", () => broadcastTyping(false));
 
   dom.replyCancel?.addEventListener("click", clearReply);
+
+  dom.btnAttach?.addEventListener("click", () => dom.attachInput?.click());
+  dom.attachInput?.addEventListener("change", (e) => {
+    if (e.target.files?.length) addPendingFiles([...e.target.files]);
+    e.target.value = "";
+  });
+  dom.attachPreviewList?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-remove-attach]");
+    if (btn) removePendingFile(Number(btn.dataset.removeAttach));
+  });
+
+  dom.btnCamera?.addEventListener("click", startCameraCapture);
+  dom.btnCameraClose?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    stopCamera();
+  });
+  dom.cameraOverlay?.addEventListener("click", (e) => {
+    if (e.target === dom.cameraOverlay) stopCamera();
+  });
+  dom.btnCameraCapture?.addEventListener("click", capturePhoto);
+
+  dom.btnMic?.addEventListener("click", () => {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      stopVoiceRecording();
+    } else {
+      startVoiceRecording();
+    }
+  });
+  dom.btnVoiceCancel?.addEventListener("click", cancelVoiceRecording);
 
   dom.messagesEl?.addEventListener("scroll", () => {
     if (dom.messagesEl.scrollTop > 60) return;
@@ -1222,10 +2001,18 @@ function initMobileBack() {
   });
 }
 
+function initCloseChat() {
+  dom.btnCloseChat?.addEventListener("click", () => {
+    closeRoom();
+    showHome();
+  });
+}
+
 export function initChat() {
   initComposer();
   initMentionMenu();
   initMobileBack();
+  initCloseChat();
 
   // Clicks outside the reaction picker close it.
   document.addEventListener("click", (e) => {

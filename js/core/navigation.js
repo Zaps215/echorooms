@@ -31,6 +31,7 @@ export function showHome() {
   if (dom.chatActive) dom.chatActive.classList.add("is-hidden");
   closeInfo();
   if (dom.info) dom.info.classList.add("is-hidden");
+  setBottomTab("chats");
 }
 
 /** Shows the active room chat, hiding the homepage. */
@@ -41,6 +42,7 @@ export function showRoomChat() {
   if (dom.sidebar) dom.sidebar.classList.remove("open");
   closeInfo();
   syncDrawerBackdrop();
+  setBottomTab("chats");
 }
 
 // --- Mobile drawer navigation ---
@@ -103,6 +105,7 @@ export function showProfile() {
   closeSidebar();
   closeInfo();
   dom.profileView.classList.remove("is-hidden");
+  setBottomTab("settings");
 }
 
 export function hideProfile() {
@@ -114,6 +117,38 @@ function syncDrawerBackdrop() {
   const drawerOpen =
     dom.sidebar?.classList.contains("open") || dom.info?.classList.contains("open");
   dom.drawerBackdrop.classList.toggle("show", drawerOpen);
+}
+
+/** Makes a single bottom-nav tab active (chats | contacts | settings). */
+export function setBottomTab(tab) {
+  if (!dom.bottomNav) return;
+  dom.bottomNav.querySelectorAll(".bottom-tab").forEach((b) => {
+    b.classList.toggle("active", b.dataset.nav === tab);
+  });
+}
+
+/**
+ * Wires the mobile bottom navigation. The Contacts tab can't import the rooms
+ * feature (circular import), so it emits an event that rooms.js subscribes to.
+ */
+export function initBottomNav() {
+  if (!dom.bottomNav) return;
+  dom.bottomNav.querySelectorAll(".bottom-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      switch (tab.dataset.nav) {
+        case "chats":
+          dom.profileView?.classList.add("is-hidden");
+          showHome();
+          break;
+        case "contacts":
+          window.dispatchEvent(new CustomEvent("echorooms:open-dm"));
+          break;
+        case "settings":
+          showProfile();
+          break;
+      }
+    });
+  });
 }
 
 /** Wires the shared drawer backdrop and Escape-to-close behavior. */

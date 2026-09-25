@@ -214,9 +214,6 @@ function initDialogControls() {
 function initProfilePage() {
   dom.btnOpenProfile?.addEventListener("click", () => showProfile());
   dom.btnProfileBack?.addEventListener("click", () => hideProfile());
-
-  // The info panel's "Edit profile" lands on the full profile page.
-  dom.btnEditProfile?.addEventListener("click", () => showProfile());
 }
 
 function initSignOut() {

@@ -30,6 +30,17 @@ export function randomBytes(n) {
   return crypto.getRandomValues(new Uint8Array(n));
 }
 
+/** RFC-4122 v4 UUID used for storage paths and ids. */
+export function randomUUID() {
+  return typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+}
+
 /** AES-GCM encrypt; returns `iv(12) || ciphertext` packed as base64. */
 async function aesGcmPack(key, plaintext) {
   const iv = randomBytes(12);
@@ -153,23 +164,34 @@ export async function decryptRoomKeyForMember(wrappedB64, privateKey) {
   return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
 
-/** Encrypts a message body with the room key. */
-export async function encryptMessage(roomKey, text) {
+/** AES-GCM-encrypts raw bytes under the room key. */
+export async function encryptBytes(roomKey, bytes) {
   const iv = randomBytes(12);
   const ct = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     roomKey,
-    enc.encode(text)
+    bytes
   );
   return { iv: bytesToB64(iv), ct: bytesToB64(new Uint8Array(ct)) };
 }
 
-/** Decrypts a message body with the room key. */
-export async function decryptMessage(roomKey, ivB64, ctB64) {
+/** AES-GCM-decrypts raw ciphertext under the room key. */
+export async function decryptBytes(roomKey, ivB64, ctB64) {
   const pt = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: b64ToBytes(ivB64) },
     roomKey,
     b64ToBytes(ctB64)
   );
+  return new Uint8Array(pt);
+}
+
+/** Encrypts a message body with the room key. */
+export async function encryptMessage(roomKey, text) {
+  return encryptBytes(roomKey, enc.encode(text));
+}
+
+/** Decrypts a message body with the room key. */
+export async function decryptMessage(roomKey, ivB64, ctB64) {
+  const pt = await decryptBytes(roomKey, ivB64, ctB64);
   return dec.decode(pt);
 }
