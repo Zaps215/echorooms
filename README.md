@@ -35,7 +35,7 @@ Start the local frontend:
 npm run dev
 ```
 
-Open the URL printed by Vite. The Shared Foundation, Identity Service, Room Service, and Messaging Service slices are implemented, including OTP email verification, room creation and listing, realtime text messaging with end-to-end encryption, @username handles and direct messages. Room invitations and the reaction/media services are next.
+Open the URL printed by Vite. The Shared Foundation, Identity, Room, Messaging, Reaction, Media, and Task slices are implemented, including OTP email verification, room creation and listing, realtime messaging with end-to-end encryption, @username handles and direct messages, member invitations, reactions, pins, presence, 2FA, encrypted attachments, per-room chat settings, and room task lists. The Search Service is next.
 
 ## Current Checkpoint
 
@@ -61,26 +61,37 @@ Open the URL printed by Vite. The Shared Foundation, Identity Service, Room Serv
 - [x] Hybrid end-to-end encryption: per-room AES-GCM keys wrapped per member with RSA-OAEP identities; email/password keys recoverable via PBKDF2, social logins device-bound; edits/deletes re-encrypt
 - [x] Direct rooms: search a user by username and open a private encrypted conversation
 - [x] Invite members to a group room by username (room admin adds the member and hands off the group key)
-- [ ] Member role management and invite acceptance
+- [x] Member role management and invite acceptance
 - [x] Room creation with the owner automatically provisioning the room's encryption key
+- [x] Reactions with per-member emoji picker and live counts
+- [x] Pinned messages and live presence indicators
+- [x] Two-factor authentication (TOTP) with recovery-code resets
+- [x] Mandatory first-run onboarding for display name, avatar, and bio
+- [x] E2EE attachments: encrypted image, video, audio, and document uploads with camera capture and voice messages
+- [x] WhatsApp-style chat settings: per-room wallpapers, theme, read receipts, and notification controls
+- [x] Mobile bottom navigation with off-canvas room list
+- [x] Task service: convert any message into a task, assign it, set a due date, and track open/in-progress/done from the room info panel (source message preserved via `ON DELETE SET NULL`)
+- [ ] Search service: full-text message search across authorized rooms
 
 ## Commands
 
 - `npm run dev` starts the Vite development server.
 - `npm run build` creates a production build in `dist/`.
 - `npm run preview` serves the production build locally.
+- `npm test` runs the unit and UI smoke tests.
 
 ## Project Structure
 
 - `index.html` contains the initial application shell.
-- `public/` contains static pages served as-is (Terms &amp; Conditions and Privacy Policy).
+- `public/` contains static pages served as-is (Terms and Conditions and Privacy Policy).
 - `css/` contains the visual foundation.
 - `js/main.js` is the entry point: it wires the auth-session lifecycle and bootstraps each feature module.
-- `js/core/` holds shared concerns — the DOM registry (`dom.js`), app state (`state.js`), Supabase access (`supabase.js`), and reusable helpers (`utils.js`, `navigation.js`), plus the E2EE primitives (`crypto.js`) and identity/keyring manager (`keyring.js`).
-- `js/features/` holds feature logic — auth (`auth.js`), email OTP verification (`otp.js`), rooms (`rooms.js`), profile/account (`profile.js`), chat (`chat.js`), and the first-run homepage (`home.js`).
+- `js/core/` holds shared concerns — the DOM registry (`dom.js`), app state (`state.js`), Supabase access (`supabase.js`), and reusable helpers (`utils.js`, `navigation.js`), plus the E2EE primitives (`crypto.js`), identity/keyring manager (`keyring.js`), and DOM-free task rules (`task-rules.js`).
+- `js/features/` holds feature logic — auth (`auth.js`), email OTP verification (`otp.js`), rooms (`rooms.js`), profile/account (`profile.js`), chat (`chat.js`), tasks (`tasks.js`), and the first-run homepage (`home.js`).
 - `js/supabase-client.js` initializes the Supabase client.
 - `supabase/migrations/` contains database migrations and RLS policies.
 - `supabase/functions/` is reserved for secure Edge Functions.
+- `tests/` contains the Node test suite. `task-rules.mjs` covers the pure task logic; `tasks-ui.mjs` loads the real feature modules against a DOM stub to catch reference errors that static analysis misses; `setup-sql.mjs` checks `setup.sql` is re-runnable; `schema-queries.mjs` checks every column the client sorts or filters by actually exists.
 - `echorooms-services/` contains the numbered service build plans.
 - `ECHOROOMS_PROGRAM.md` is the complete product specification.
 

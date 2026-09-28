@@ -22,6 +22,7 @@ import { initChat, closeRoom } from "./features/chat.js";
 import { initHome, enterHome } from "./features/home.js";
 import { initOnboarding, openOnboarding } from "./features/onboarding.js";
 import { initMfa, requireMfaIfNeeded } from "./features/mfa.js";
+import { initTasks } from "./features/tasks.js";
 
 // --- Feature wiring (listener setup only) ---
 initNavigation();
@@ -35,6 +36,7 @@ initChat();
 initHome();
 initOnboarding();
 initMfa();
+initTasks();
 
 // --- Session lifecycle ---
 async function enterApp(user) {

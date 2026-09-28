@@ -202,6 +202,28 @@ export const pinList = query("pin-list");
 export const pinCount = query("pin-count");
 export const pinEmpty = query("pin-empty");
 
+export const taskCard = query("task-card");
+export const taskList = query("task-list");
+export const taskCount = query("task-count");
+export const taskEmpty = query("task-empty");
+export const taskFilters = query("task-filters");
+export const btnNewTask = query("btn-new-task");
+
+export const taskDialog = query("task-dialog");
+export const taskDialogTitle = query("task-dialog-title");
+export const taskDialogClose = query("task-dialog-close");
+export const taskCancel = query("task-cancel");
+export const taskDelete = query("task-delete");
+export const taskSave = query("task-save");
+export const taskForm = query("task-form");
+export const taskTitle = query("task-title");
+export const taskDesc = query("task-desc");
+export const taskAssignee = query("task-assignee");
+export const taskDue = query("task-due");
+export const taskStatus = query("task-status");
+export const taskSource = query("task-source");
+export const taskError = query("task-error");
+
 export const roomDialog = query("room-dialog");
 export const roomForm = query("room-form");
 export const roomName = query("room-name");

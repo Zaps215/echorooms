@@ -631,6 +631,22 @@
           <p class="dm-none" id="pin-empty">No pinned messages.</p>
         </section>
 
+        <!-- Tasks -->
+        <section class="info-card" id="task-card">
+          <div class="card-head"><h4>Tasks</h4><span class="badge" id="task-count">0</span></div>
+          <div class="side-tabs task-tabs" id="task-filters" role="tablist" aria-label="Filter tasks">
+            <button type="button" class="tab active" data-task-filter="open" role="tab" aria-selected="true">Open</button>
+            <button type="button" class="tab" data-task-filter="in_progress" role="tab" aria-selected="false">In progress</button>
+            <button type="button" class="tab" data-task-filter="done" role="tab" aria-selected="false">Done</button>
+            <button type="button" class="tab" data-task-filter="all" role="tab" aria-selected="false">All</button>
+          </div>
+          <ul class="task-list" id="task-list"></ul>
+          <p class="dm-none" id="task-empty">No tasks yet.</p>
+          <div class="option-list room-info-actions">
+            <button class="option-btn" id="btn-new-task">New task</button>
+          </div>
+        </section>
+
         <!-- Settings -->
         <section class="info-card">
           <div class="card-head"><h4>Settings</h4></div>
@@ -945,6 +961,63 @@
           <div class="modal-actions">
             <button type="button" class="btn-ghost" id="invite-cancel">Cancel</button>
             <button type="submit" class="btn-primary">Search</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <!-- Task Editor Dialog -->
+    <dialog class="modal" id="task-dialog">
+      <div class="modal-content">
+        <header class="modal-head">
+          <h3 id="task-dialog-title">New task</h3>
+          <button class="icon-btn" id="task-dialog-close" title="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </header>
+
+        <form class="modal-form" id="task-form">
+          <div class="field">
+            <label for="task-title">What needs doing?</label>
+            <input id="task-title" type="text" name="title" maxlength="200" autocomplete="off" placeholder="Task title" required />
+          </div>
+
+          <div class="field">
+            <label for="task-desc">Details <span class="field-optional">(optional)</span></label>
+            <textarea id="task-desc" name="description" rows="3" maxlength="2000" autocomplete="off" placeholder="Add context, links, or acceptance criteria"></textarea>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="task-assignee">Assign to</label>
+              <select id="task-assignee" name="assignee_id">
+                <option value="">Nobody</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="task-due">Due date</label>
+              <input id="task-due" type="date" name="due_at" autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="task-status">Status</label>
+            <select id="task-status" name="status">
+              <option value="open">Open</option>
+              <option value="in_progress">In progress</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+
+          <blockquote class="task-source" id="task-source" hidden></blockquote>
+
+          <div class="error-box" id="task-error" role="alert" hidden></div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-ghost danger" id="task-delete" hidden>Delete</button>
+            <button type="button" class="btn-ghost" id="task-cancel">Cancel</button>
+            <button type="submit" class="btn-primary" id="task-save">Save task</button>
           </div>
         </form>
       </div>

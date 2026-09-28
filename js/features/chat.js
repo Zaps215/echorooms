@@ -40,6 +40,10 @@ export const REACTION_EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🔥",
 export const EVENTS = {
   pins: "echorooms:pins",
   presence: "echorooms:presence",
+  // Fired by this module when a task should be spawned from a message; the
+  // Task Service listens for it so the two modules stay decoupled.
+  tasks: "echorooms:tasks",
+  createTask: "echorooms:create-task",
 };
 
 // Per-room cache of userId -> profile, used to label realtime messages.
@@ -820,6 +824,11 @@ function subscribeToRoom(roomId) {
       { event: "DELETE", schema: "public", table: "pins", filter: `room_id=eq.${roomId}` },
       () => onPinsChanged()
     )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "tasks", filter: `room_id=eq.${roomId}` },
+      () => window.dispatchEvent(new CustomEvent(EVENTS.tasks))
+    )
     .on("broadcast", { event: "typing" }, (e) => handleTypingEvent(e.payload))
     .on("presence", { event: "sync" }, () => {
       presenceMap.clear();
@@ -1022,6 +1031,20 @@ export async function unpinMessage(roomId, messageId) {
     .eq("room_id", roomId)
     .eq("message_id", messageId);
   await onPinsChanged();
+}
+
+// --- Tasks ------------------------------------------------------------------
+
+// Hand a message off to the Task Service. The snippet is the decrypted body,
+// truncated, so the dialog can show what the task came from.
+function requestTaskFromMessage(message) {
+  const text = (message.body || "").replace(/\s+/g, " ").trim();
+  const snippet = text.length > 140 ? `${text.slice(0, 140)}…` : text;
+  window.dispatchEvent(
+    new CustomEvent(EVENTS.createTask, {
+      detail: { messageId: message.id, sourceText: snippet },
+    })
+  );
 }
 
 // --- Replies ---------------------------------------------------------------
@@ -1248,6 +1271,7 @@ function messageHtml(msg) {
                <button type="button" class="msg-menu-btn" data-menu aria-label="Message actions">⋯</button>
                <div class="msg-menu-list is-hidden">
                  <button type="button" data-action="reply">Reply</button>
+                 <button type="button" data-action="task">Create task</button>
                  ${isAdminRoom ? `<button type="button" data-action="${pinned ? "unpin" : "pin"}">${pinned ? "Unpin" : "Pin"}</button>` : ""}
                  <button type="button" data-action="edit">Edit</button>
                  <button type="button" data-action="delete" class="danger">Delete</button>
@@ -1391,6 +1415,7 @@ function messageActionsHtml(msg) {
       ${pills ? `<div class="reaction-row">${pills}</div>` : ""}
       <button type="button" class="msg-react" data-react-open data-message="${msg.id}" title="Add a reaction">＋</button>
       ${own ? "" : `<button type="button" class="msg-reply-link" data-action="reply" data-message="${msg.id}">Reply</button>`}
+      <button type="button" class="msg-reply-link" data-action="task" data-message="${msg.id}" title="Turn this message into a task">Task</button>
     </div>`;
 }
 
@@ -1656,6 +1681,9 @@ function handleMessagesClick(event) {
   if (event.target.closest("[data-action='reply']")) {
     closeMenus();
     startReply(message);
+  } else if (event.target.closest("[data-action='task']")) {
+    closeMenus();
+    requestTaskFromMessage(message);
   } else if (event.target.closest("[data-action='pin']")) {
     closeMenus();
     pinMessage(state.currentRoomId, message.id);

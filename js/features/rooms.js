@@ -11,7 +11,8 @@ import { showError, hideError, escapeHtml, avatarColor } from "../core/utils.js"
 import { showRoomChat, closeSidebar, closeInfo, showHome } from "../core/navigation.js";
 import { showConfirm } from "../core/confirm.js";
 import { openRoom, closeRoom, getPins, getPresence, EVENTS, unpinMessage, setComposerNotice, setRoomDisappear, clearLocalMessages } from "./chat.js";
-import { decryptAttachment, isImageMime, formatBytes } from "./media.js";
+import { decryptAttachment, isImageMime } from "./media.js";
+import { onRoomOpened as onTasksRoomOpened } from "./tasks.js";
 import { getIdentity, createRoomKey, getRoomKey, shareRoomKey, canManageRoom } from "../core/keyring.js";
 import { randomUUID } from "../core/crypto.js";
 
@@ -202,6 +203,11 @@ async function renderRoomInfo(room) {
   if (dom.memberCount) dom.memberCount.textContent = "0";
   if (dom.infoMediaGrid) dom.infoMediaGrid.innerHTML = "";
   if (dom.infoMediaEmpty) dom.infoMediaEmpty.hidden = false;
+  if (dom.pinList) dom.pinList.innerHTML = "";
+  if (dom.pinCount) dom.pinCount.textContent = "0";
+  if (dom.taskList) dom.taskList.innerHTML = "";
+  if (dom.taskCount) dom.taskCount.textContent = "0";
+  if (dom.taskEmpty) dom.taskEmpty.hidden = false;
 
   const isAdmin = await canManageRoom(room.id);
   if (dom.btnDissolveRoom) {
@@ -247,6 +253,7 @@ async function renderRoomInfo(room) {
 
   renderMembersList();
   renderPinnedSection(room.id);
+  onTasksRoomOpened(room.id);
   renderRoomHero(roomRow);
   loadMediaGallery(room.id);
   setSettingsRowValues();

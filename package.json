@@ -7,10 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "echo \"No tests configured yet\""
+    "test": "node tests/crypto.mjs && node tests/task-rules.mjs && node --import ./tests/register-loader.mjs tests/tasks-ui.mjs && node tests/setup-sql.mjs && node tests/schema-queries.mjs"
   },
   "keywords": [],
-  "author": "",
+  "author": "Emmanuel Akolbilla Alhassan Ananga [Zaps]",
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4"
