@@ -473,7 +473,11 @@ begin
     raise exception 'Invalid user';
   end if;
 
-  if not exists (select 1 from public.profiles where id = other_user_id) then
+  -- The RETURNS TABLE clause below declares output parameters as PL/pgSQL
+  -- variables, so a bare `id` anywhere in this body is ambiguous between the
+  -- variable and profiles.id (SQLSTATE 42702) and the RPC fails outright. Every
+  -- such reference is table-qualified.
+  if not exists (select 1 from public.profiles p where p.id = other_user_id) then
     raise exception 'User not found';
   end if;
 
@@ -486,12 +490,12 @@ begin
   limit 1;
 
   if found is null then
-    insert into public.rooms (name, room_type, created_by)
+    insert into public.rooms as new_room (name, room_type, created_by)
     values (
       left(
         coalesce(
-          nullif(trim((select display_name from public.profiles where id = other_user_id)), ''),
-          (select username from public.profiles where id = other_user_id),
+          nullif(trim((select p.display_name from public.profiles p where p.id = other_user_id)), ''),
+          (select p.username from public.profiles p where p.id = other_user_id),
           'Direct'
         ),
         80
@@ -499,7 +503,7 @@ begin
       'direct',
       me
     )
-    returning id into found;
+    returning new_room.id into found;
 
     insert into public.room_members (room_id, user_id, role) values
       (found, me, 'owner'),
@@ -1068,7 +1072,7 @@ begin
     raise exception 'Invalid user';
   end if;
 
-  if not exists (select 1 from public.profiles where id = other_user_id) then
+  if not exists (select 1 from public.profiles p where p.id = other_user_id) then
     raise exception 'User not found';
   end if;
 
@@ -1090,12 +1094,12 @@ begin
   limit 1;
 
   if found is null then
-    insert into public.rooms (name, room_type, created_by)
+    insert into public.rooms as new_room (name, room_type, created_by)
     values (
       left(
         coalesce(
-          nullif(trim((select display_name from public.profiles where id = other_user_id)), ''),
-          (select username from public.profiles where id = other_user_id),
+          nullif(trim((select p.display_name from public.profiles p where p.id = other_user_id)), ''),
+          (select p.username from public.profiles p where p.id = other_user_id),
           'Direct'
         ),
         80
@@ -1103,7 +1107,7 @@ begin
       'direct',
       me
     )
-    returning id into found;
+    returning new_room.id into found;
 
     insert into public.room_members (room_id, user_id, role) values
       (found, me, 'owner'),

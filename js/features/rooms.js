@@ -855,6 +855,12 @@ async function startDm(user) {
   });
 
   if (result.error || !result.data || !result.data[0]) {
+    // Supabase returns RPC failures in the response rather than throwing, so
+    // without this the database's reason (a missing column, an ambiguous
+    // reference, a policy denial) never reaches the console at all.
+    if (import.meta.env.DEV && result.error) {
+      console.warn("[dm] create_direct_room failed:", result.error.message);
+    }
     showError(dom.dmError, "Could not start that conversation. Try again.");
     return;
   }
