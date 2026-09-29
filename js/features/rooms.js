@@ -10,7 +10,8 @@ import { supabase } from "../core/supabase.js";
 import { showError, hideError, escapeHtml, avatarColor } from "../core/utils.js";
 import { showRoomChat, closeSidebar, closeInfo, showHome } from "../core/navigation.js";
 import { showConfirm } from "../core/confirm.js";
-import { openRoom, closeRoom, getPins, getPresence, EVENTS, unpinMessage, setComposerNotice, setRoomDisappear, clearLocalMessages } from "./chat.js";
+import { openRoom, closeRoom, getPins, getPresence, getRoomMembers, EVENTS, unpinMessage, setComposerNotice, setRoomDisappear, clearLocalMessages } from "./chat.js";
+import { chatHeaderView } from "../core/chat-header.js";
 import { decryptAttachment, isImageMime } from "./media.js";
 import { onRoomOpened as onTasksRoomOpened } from "./tasks.js";
 import { getIdentity, createRoomKey, getRoomKey, shareRoomKey, canManageRoom } from "../core/keyring.js";
@@ -671,6 +672,38 @@ function initWallpaperReset() {
     applyChatWallpaper("");
     resetChatSettingsState();
   });
+
+  // Keeps the header avatar's presence dot and "Active now" in step with the
+  // realtime channel.
+  window.addEventListener(EVENTS.presence, renderChatHeader);
+}
+
+/**
+ * Header avatar + subtitle for the open room. A direct room shows the other
+ * participant and their live presence; a group shows its own initials and a
+ * member count, since no single user represents it.
+ *
+ * Re-runs on every presence sync, so the dot and "Active now" stay truthful as
+ * the other person comes and goes.
+ */
+function renderChatHeader() {
+  const room = state.rooms.find((r) => r.id === state.currentRoomId);
+  if (!room || !dom.chatAvatar) return;
+
+  const view = chatHeaderView({
+    room,
+    members: getRoomMembers(room.id),
+    currentUserId: state.currentUser?.id,
+    onlineUserIds: new Set(getPresence().keys()),
+  });
+  if (!view) return;
+
+  dom.chatAvatar.textContent = view.label.charAt(0).toUpperCase();
+  dom.chatAvatar.style.background = avatarColor(view.label);
+  if (dom.chatPresenceDot) {
+    dom.chatPresenceDot.classList.toggle("is-hidden", !view.presence);
+  }
+  if (dom.chatSubtitle) dom.chatSubtitle.textContent = view.subtitle;
 }
 
 export function selectRoom(roomId) {
@@ -681,11 +714,16 @@ export function selectRoom(roomId) {
   dom.chatTitle.textContent = room.name;
   dom.chatSubtitle.textContent =
     room.room_type === "direct" ? "Direct conversation" : "Group room";
+  renderChatHeader();
   showRoomChat();
 
   if (dom.info) dom.info.classList.remove("is-hidden");
 
-  openRoom(roomId);
+  openRoom(roomId).then(() => {
+    // Member rows and the room key arrive after selectRoom returns, so the
+    // peer avatar can only be resolved once the room has opened.
+    if (state.currentRoomId === roomId) renderChatHeader();
+  });
   renderRoomInfo(room);
   renderRooms();
 }

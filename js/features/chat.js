@@ -232,6 +232,14 @@ async function loadMembers(roomId) {
   memberCache.set(roomId, map);
 }
 
+/**
+ * The cached profile rows for a room's members, keyed by user id, or undefined
+ * if the membership has not loaded yet.
+ */
+export function getRoomMembers(roomId) {
+  return memberCache.get(roomId);
+}
+
 // --- Attachments -----------------------------------------------------------
 
 async function loadAttachments(roomId, messages) {

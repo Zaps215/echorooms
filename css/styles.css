@@ -16,8 +16,11 @@
   --accent: #2563eb;
   --accent-hover: #1d4fd7;
   --accent-soft: #eef3ff;
-  --bubble-own: #e7f0ff;
+  --bubble-own: #2563eb;
+  --bubble-own-ink: #ffffff;
+  --bubble-own-time: #c7dbff;
   --bubble-other: #fff;
+  --bubble-other-ink: #1f2937;
   --danger: #dc2626;
   --danger-bg: #fef2f2;
   --ok: #059669;
@@ -540,6 +543,18 @@ input, textarea { font-family: inherit; }
   padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel-bg);
 }
 .mobile-back { display: none; }
+.chat-head-avatar { position: relative; flex: 0 0 auto; }
+.chat-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center; color: #fff;
+  font-size: 13.5px; font-weight: 700;
+}
+.presence-dot {
+  position: absolute; right: -1px; bottom: -1px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--ok); border: 2px solid var(--panel-bg);
+}
+.presence-dot.is-hidden { display: none; }
 .chat-title-group { flex: 1; min-width: 0; }
 .chat-title-group h3 { margin: 0; font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chat-subtitle { font-size: 12.5px; color: var(--muted); }
@@ -566,7 +581,8 @@ input, textarea { font-family: inherit; }
 .day-divider span {
   display: inline-block; padding: 5px 12px; border-radius: 14px;
   background: rgba(255,255,255,.92); box-shadow: var(--shadow-sm);
-  font-size: 12px; font-weight: 500; color: var(--muted);
+  font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted-2);
 }
 
 .msg { display: flex; margin-bottom: 4px; }
@@ -578,8 +594,14 @@ input, textarea { font-family: inherit; }
   font-size: 14px; line-height: 1.45; position: relative;
   box-shadow: var(--shadow-sm); white-space: pre-wrap; word-wrap: break-word;
 }
-.msg.other .bubble { background: var(--bubble-other); border-top-left-radius: 4px; }
-.msg.own .bubble { background: var(--bubble-own); border-top-right-radius: 4px; }
+.msg.other .bubble {
+  background: var(--bubble-other); color: var(--bubble-other-ink);
+  border: 1px solid var(--line); border-top-left-radius: 4px;
+}
+.msg.own .bubble {
+  background: var(--bubble-own); color: var(--bubble-own-ink);
+  border: 1px solid transparent; border-top-right-radius: 4px;
+}
 .bubble .sender { display: block; font-size: 12.5px; font-weight: 700; color: var(--accent); margin-bottom: 1px; }
 .bubble-meta {
   display: flex; align-items: center; gap: 4px; justify-content: flex-end;
@@ -587,6 +609,8 @@ input, textarea { font-family: inherit; }
   padding-left: 8px; user-select: none;
 }
 .bubble-meta svg { width: 13px; height: 13px; color: var(--accent); }
+.msg.own .bubble-meta { color: var(--bubble-own-time); }
+.msg.own .bubble-meta svg { color: var(--bubble-own-ink); }
 .reactions { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
 .reaction {
   font-size: 12px; background: #fff; border: 1px solid var(--line);
@@ -603,6 +627,7 @@ input, textarea { font-family: inherit; }
   color: var(--danger); font-size: 10.5px; font-weight: 700; cursor: pointer;
 }
 .msg-retry:hover { text-decoration: underline; }
+.msg.own .msg-retry { color: #fff; text-decoration: underline; }
 
 .msg-menu { position: relative; display: flex; align-items: center; align-self: center; }
 .msg-menu-btn {
@@ -657,6 +682,10 @@ input, textarea { font-family: inherit; }
   display: block; font-size: 12px; color: var(--muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Own bubbles are solid blue, so the quote needs an inverted treatment. */
+.msg.own .bubble-reply { background: rgba(255,255,255,.16); border-left-color: rgba(255,255,255,.7); }
+.msg.own .bubble-reply-sender { color: #fff; }
+.msg.own .bubble-reply-text { color: var(--bubble-own-time); }
 .bubble-pin { margin-right: 3px; font-size: 12px; }
 
 /* Reactions, react button, reply link */
