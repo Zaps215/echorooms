@@ -29,13 +29,15 @@ supabase db push
 
 `supabase/setup.sql` is idempotent and consolidates every migration, so it is the fastest path for a fresh or recreated project. The per-file migrations in `supabase/migrations/` remain the source of truth.
 
+An existing deployment that still has the removed features should be updated with `supabase/migrations/0015_drop_removed_features.sql`, which drops their tables, columns, RPCs, and policies. That migration is destructive — back up the project first. A fresh install already reflects the reduced schema, so it does not need it.
+
 Start the local frontend:
 
 ```bash
 npm run dev
 ```
 
-Open the URL printed by Vite. The Shared Foundation, Identity, Room, Messaging, Reaction, Media, and Task slices are implemented, including OTP email verification, room creation and listing, realtime messaging with end-to-end encryption, @username handles and direct messages, member invitations, reactions, pins, presence, 2FA, encrypted attachments, per-room chat settings, and room task lists. The Search Service is next.
+Open the URL printed by Vite. The app is a focused realtime messenger: OTP email verification, room creation and listing, encrypted direct and group messaging with @username handles and mentions, member invitations, and encrypted attachments.
 
 ## Current Checkpoint
 
@@ -52,26 +54,19 @@ Open the URL printed by Vite. The Shared Foundation, Identity, Room, Messaging, 
 - [x] Secure room creation and room listing
 - [x] Centered, single-card auth layout with the logo above the form
 - [x] Light theme (blue primary, amber highlights) applied across the app shell
-- [x] Telegram-style three-pane app homepage (sidebar with All/Groups tabs and round avatars, chat pane, and a room-info panel that lists members)
-- [x] First-run homepage with a welcome greeting and "create your first room" call-to-action when a new user has no rooms
+- [x] Two-pane layout: room list (All/Groups tabs, room filter, round initial avatars) beside the conversation pane
+- [x] Room info slide-over with members, invites, attachments, encryption details, and clear/delete/dissolve/restore actions
+- [x] Mobile single-pane layout: the room list and conversation swap via a back button, with the info panel as an overlay drawer
 - [x] Draft Terms &amp; Conditions and Privacy Policy pages linked from the signup form
-- [x] Mobile-responsive app shell: off-canvas room-list and info-panel drawers, hamburger menu, shared tap-anywhere/Escape close, safe-area insets, 16px inputs (no iOS focus-zoom), and a fixed bug where the info panel never appeared previously
 - [x] Realtime messaging: paginated history, day-grouped stream, optimistic sends with retry, edit and soft-delete, and live updates per room
-- [x] Required unique @username claimed on first login (onboarding dialog); used for sender labels, mention autocomplete, and direct-room search by username
+- [x] Unique @username claimed on first login; used for sender labels, mention autocomplete, and direct-room search
 - [x] Hybrid end-to-end encryption: per-room AES-GCM keys wrapped per member with RSA-OAEP identities; email/password keys recoverable via PBKDF2, social logins device-bound; edits/deletes re-encrypt
 - [x] Direct rooms: search a user by username and open a private encrypted conversation
 - [x] Invite members to a group room by username (room admin adds the member and hands off the group key)
 - [x] Member role management and invite acceptance
 - [x] Room creation with the owner automatically provisioning the room's encryption key
-- [x] Reactions with per-member emoji picker and live counts
-- [x] Pinned messages and live presence indicators
-- [x] Two-factor authentication (TOTP) with recovery-code resets
-- [x] Mandatory first-run onboarding for display name, avatar, and bio
-- [x] E2EE attachments: encrypted image, video, audio, and document uploads with camera capture and voice messages
-- [x] WhatsApp-style chat settings: per-room wallpapers, theme, read receipts, and notification controls
-- [x] Mobile bottom navigation with off-canvas room list
-- [x] Task service: convert any message into a task, assign it, set a due date, and track open/in-progress/done from the room info panel (source message preserved via `ON DELETE SET NULL`)
-- [ ] Search service: full-text message search across authorized rooms
+- [x] Replies with an inline quoted preview of the original message
+- [x] E2EE attachments: encrypted image, video, audio, and document uploads
 
 ## Commands
 
@@ -86,13 +81,13 @@ Open the URL printed by Vite. The Shared Foundation, Identity, Room, Messaging, 
 - `public/` contains static pages served as-is (Terms and Conditions and Privacy Policy).
 - `css/` contains the visual foundation.
 - `js/main.js` is the entry point: it wires the auth-session lifecycle and bootstraps each feature module.
-- `js/core/` holds shared concerns — the DOM registry (`dom.js`), app state (`state.js`), Supabase access (`supabase.js`), and reusable helpers (`utils.js`, `navigation.js`), plus the E2EE primitives (`crypto.js`), identity/keyring manager (`keyring.js`), and DOM-free task rules (`task-rules.js`).
-- `js/features/` holds feature logic — auth (`auth.js`), email OTP verification (`otp.js`), rooms (`rooms.js`), profile/account (`profile.js`), chat (`chat.js`), tasks (`tasks.js`), and the first-run homepage (`home.js`).
+- `js/core/` holds shared concerns — the DOM registry (`dom.js`), app state (`state.js`), Supabase access (`supabase.js`), reusable helpers (`utils.js`, `navigation.js`, `confirm.js`), the conversation header view model (`chat-header.js`), and the E2EE primitives (`crypto.js`) with the identity/keyring manager (`keyring.js`).
+- `js/features/` holds feature logic — auth (`auth.js`), email OTP verification (`otp.js`), rooms and member management (`rooms.js`), profile/account (`profile.js`), chat (`chat.js`), and encrypted attachment handling (`media.js`).
 - `js/supabase-client.js` initializes the Supabase client.
-- `supabase/migrations/` contains database migrations and RLS policies.
+- `supabase/setup.sql` is the consolidated schema; `supabase/migrations/` contains the incremental migrations that produced it, including `0015_drop_removed_features.sql` which strips features from a database deployed against earlier revisions. `supabase/verify.sql` holds ad-hoc verification queries.
 - `supabase/functions/` is reserved for secure Edge Functions.
-- `tests/` contains the Node test suite. `task-rules.mjs` covers the pure task logic; `tasks-ui.mjs` loads the real feature modules against a DOM stub to catch reference errors that static analysis misses; `setup-sql.mjs` checks `setup.sql` is re-runnable; `schema-queries.mjs` checks every column the client sorts or filters by actually exists.
-- `echorooms-services/` contains the numbered service build plans.
+- `tests/` contains the Node test suite. `crypto.mjs` covers the encryption primitives; `chat-header.mjs` covers the header view model; `setup-sql.mjs` checks `setup.sql` is re-runnable; `sql-ambiguity.mjs` checks queries avoid ambiguous column references; `schema-queries.mjs` checks every table and column the client sorts or filters by actually exists.
+- `echorooms-services/` contains the original numbered service build plans. Several of those slices (reactions, pins, presence, 2FA, onboarding, chat settings, tasks, search) are not part of the current app.
 - `ECHOROOMS_PROGRAM.md` is the complete product specification.
 
 Never commit `.env` or service-role keys.

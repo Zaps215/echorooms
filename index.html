@@ -238,74 +238,8 @@
     </section>
   </main>
 
-  <!-- Two-factor challenge shown when the signed-in account requires a TOTP code -->
-  <div class="mfa-overlay is-hidden" id="mfa-overlay">
-    <div class="onboarding-card">
-      <div class="onboarding-logo">EchoRooms</div>
-      <h1>Two-factor verification</h1>
-      <p class="onboarding-sub">Enter the 6-digit code from your authenticator app to continue.</p>
-
-      <div class="otp-boxes" id="mfa-boxes" aria-label="Two-factor verification code">
-        <input type="tel" id="mfa-digit-0" name="mfa0" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1" />
-        <input type="tel" id="mfa-digit-1" name="mfa1" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 2" />
-        <input type="tel" id="mfa-digit-2" name="mfa2" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 3" />
-        <input type="tel" id="mfa-digit-3" name="mfa3" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 4" />
-        <input type="tel" id="mfa-digit-4" name="mfa4" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 5" />
-        <input type="tel" id="mfa-digit-5" name="mfa5" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 6" />
-      </div>
-
-      <div class="error-box" id="mfa-error" role="alert" hidden></div>
-
-      <button type="button" class="btn-primary" id="btn-mfa-submit" style="width:100%">Verify</button>
-    </div>
-  </div>
-
   <!-- ============ APP SHELL ============ -->
   <div class="app-wrapper is-hidden" id="app-wrapper">
-    <!-- First-run profile onboarding -->
-    <div class="onboarding-view is-hidden" id="onboarding-view">
-      <div class="onboarding-card">
-        <div class="onboarding-logo">EchoRooms</div>
-        <h1>Set up your profile</h1>
-        <p class="onboarding-sub">This only takes a moment. You can update any of this anytime from your profile.</p>
-
-        <form class="modal-form" id="onboarding-form" novalidate>
-          <div class="field">
-            <label for="onboard-name">Display name <small>(optional)</small></label>
-            <input id="onboard-name" type="text" name="name" maxlength="80" autocomplete="name" placeholder="Jane Appleseed" />
-          </div>
-
-          <div class="field">
-            <label for="onboard-username">Username</label>
-            <input id="onboard-username" type="text" name="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9_.]+" placeholder="@handle" autocomplete="off" autocapitalize="off" spellcheck="false" required />
-            <p class="field-hint">People use this to find you and start a private chat. It can't be changed once set.</p>
-          </div>
-
-          <div class="field">
-            <label for="onboard-dob">Date of birth <small>(optional)</small></label>
-            <input id="onboard-dob" type="date" name="dob" />
-          </div>
-
-          <div class="field">
-            <span class="field-label">Profile picture <small>(optional)</small></span>
-            <div class="onboard-avatar-row">
-              <span class="me-avatar onboard-avatar" id="onboard-avatar-preview">?</span>
-              <button type="button" class="btn-ghost" id="btn-onboard-avatar">Choose photo</button>
-            </div>
-            <input id="onboard-avatar-input" type="file" name="avatar" autocomplete="off" accept="image/png,image/jpeg,image/webp" hidden />
-          </div>
-
-          <div class="error-box" id="onboard-error" role="alert" hidden></div>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-ghost" id="btn-onboard-skip">Save username only</button>
-            <button type="submit" class="btn-primary">Save profile</button>
-          </div>
-        </form>
-
-        <p class="onboarding-foot">Skipping a field is fine — you can add it later from Profile → Edit.</p>
-      </div>
-    </div>
 
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
@@ -333,7 +267,6 @@
 
         <div class="side-tabs">
           <button class="tab active" data-tab="all">All</button>
-          <button class="tab" data-tab="unread">Unread</button>
           <button class="tab" data-tab="groups">Groups</button>
         </div>
       </header>
@@ -345,7 +278,6 @@
           <span class="me-avatar" id="me-avatar">Z</span>
           <span class="me-info">
             <span class="me-name" id="me-name">User</span>
-            <span class="me-status">Online</span>
           </span>
         </button>
         <button class="ghost-btn" title="Sign out" id="btn-logout">
@@ -356,66 +288,6 @@
 
     <!-- Chat -->
     <main class="chat">
-      <div class="home" id="home-view">
-        <div class="home-head">
-          <button class="icon-btn mobile-menu" id="btn-menu" title="Menu">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
-          </button>
-          <div class="home-brand">
-            <div class="logo-mark">
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M4 6h16M4 12h16M4 18h10" />
-                <circle cx="19" cy="18" r="2.5" />
-              </svg>
-            </div>
-            <h1>EchoRooms</h1>
-          </div>
-          <p class="home-greeting" id="home-greeting">Welcome back.</p>
-        </div>
-
-        <div class="home-body">
-          <div class="home-hero">
-            <h2 id="home-title">No rooms yet</h2>
-            <p id="home-subtitle">Create your first room to open a conversation workspace for you and your friends.</p>
-          </div>
-          <div class="home-actions">
-            <button type="button" class="btn-primary" id="btn-home-new-room">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Create your first room
-            </button>
-          </div>
-          <div class="home-features">
-            <div class="home-feature">
-              <span class="home-feature-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              </span>
-              <span>
-                <strong>Invite members</strong>
-                <small>Bring your group into one shared space.</small>
-              </span>
-            </div>
-            <div class="home-feature">
-              <span class="home-feature-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-              </span>
-              <span>
-                <strong>Real-time messages</strong>
-                <small>Conversations update live as they happen.</small>
-              </span>
-            </div>
-            <div class="home-feature">
-              <span class="home-feature-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              </span>
-              <span>
-                <strong>End-to-end encrypted</strong>
-                <small>Messages are locked before they leave your device.</small>
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div class="chat-empty" id="chat-empty">
         <div class="empty-orbit">
           <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2.5"/></svg>
@@ -429,10 +301,7 @@
           <button class="icon-btn mobile-back" id="btn-back">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
           </button>
-          <div class="chat-head-avatar" id="chat-head-avatar" aria-hidden="true">
-            <span class="chat-avatar" id="chat-avatar">?</span>
-            <span class="presence-dot is-hidden" id="chat-presence-dot"></span>
-          </div>
+          <span class="chat-avatar" id="chat-avatar" aria-hidden="true">?</span>
           <div class="chat-title-group">
             <h3 id="chat-title">Room</h3>
             <span class="chat-subtitle" id="chat-subtitle">0 members</span>
@@ -451,16 +320,9 @@
 
         <footer class="composer">
           <p class="composer-notice is-hidden" id="composer-notice"></p>
-          <p class="typing-indicator is-hidden" id="typing-indicator"></p>
           <div class="attach-preview is-hidden" id="attach-preview">
             <ul class="attach-preview-list" id="attach-preview-list"></ul>
             <p class="attach-progress is-hidden" id="attach-progress"></p>
-          </div>
-          <div class="voice-bar is-hidden" id="voice-bar">
-            <span class="voice-dot"></span>
-            <span class="voice-timer" id="voice-timer">0:00</span>
-            <span class="voice-hint">Recording… tap mic to stop</span>
-            <button type="button" class="voice-cancel" id="btn-voice-cancel" title="Discard recording">✕</button>
           </div>
           <div class="composer-inner">
             <div class="reply-bar is-hidden" id="reply-bar">
@@ -477,12 +339,6 @@
               <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
             <input id="attach-input" type="file" multiple hidden />
-            <button type="button" class="attach-btn" id="btn-camera" title="Take a photo" aria-label="Take a photo">
-              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </button>
-            <button type="button" class="attach-btn" id="btn-mic" title="Record a voice message" aria-label="Record a voice message">
-              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
-            </button>
             <textarea id="composer-input" name="composer" rows="1" autocomplete="off" placeholder="Message the room…"></textarea>
             <button class="send-btn" id="btn-send" title="Send">
               <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -538,57 +394,14 @@
               <span>Delete</span>
             </button>
           </div>
-
-          <div class="security-card">
-            <div class="security-head">
-              <div>
-                <h4>Two-factor authentication</h4>
-                <p id="mfa-status-text">Loading security status…</p>
-              </div>
-            </div>
-            <div class="security-actions">
-              <button type="button" class="btn-ghost" id="btn-mfa-setup" hidden>Set up 2FA</button>
-              <button type="button" class="btn-ghost danger" id="btn-mfa-disable" hidden>Disable 2FA</button>
-            </div>
-          </div>
         </div>
       </section>
     </main>
-
-    <!-- Bottom navigation (mobile, Telegram-style) -->
-    <nav class="bottom-nav" id="bottom-nav" aria-label="Primary navigation">
-      <button type="button" class="bottom-tab active" data-nav="chats" id="tab-chats">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Chats</span>
-      </button>
-      <button type="button" class="bottom-tab" data-nav="contacts" id="tab-contacts">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2 19a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/><path d="M20 19v-.5a4.5 4.5 0 0 0-3-4.2"/></svg>
-        <span>Contacts</span>
-      </button>
-      <button type="button" class="bottom-tab" data-nav="settings" id="tab-settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        <span>Settings</span>
-      </button>
-    </nav>
-
-    <!-- Camera capture overlay -->
-    <div class="camera-overlay is-hidden" id="camera-overlay">
-      <video id="camera-preview" autoplay playsinline muted></video>
-      <div class="camera-toolbar">
-        <button type="button" class="camera-btn close" id="btn-camera-close" title="Close camera" aria-label="Close camera">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-        <button type="button" class="camera-btn shutter" id="btn-camera-capture" title="Capture photo" aria-label="Capture photo"></button>
-        <span class="camera-spacer" aria-hidden="true"></span>
-      </div>
-      <p class="camera-hint" id="camera-hint">Allow camera access to take a photo</p>
-    </div>
 
     <!-- Info Panel (WhatsApp-style chat settings) -->
     <aside class="info is-hidden" id="info">
       <header class="info-head">
         <div>
-          <h3 id="info-title">Chat settings</h3>
           <span class="info-head-sub" id="info-head-sub">Room details</span>
         </div>
         <button class="icon-btn" id="btn-close-info" title="Close">
@@ -603,12 +416,9 @@
             <span class="room-info-avatar" id="info-room-avatar">?</span>
             <div class="room-info-main">
               <h4 id="info-room-name"></h4>
-              <p id="info-room-desc"></p>
+              <p id="info-room-desc" hidden></p>
               <span class="info-room-tag" id="info-room-tag"></span>
             </div>
-          </div>
-          <div class="option-list room-info-actions">
-            <button class="option-btn" id="btn-edit-room" hidden>Edit room settings</button>
           </div>
         </section>
 
@@ -621,61 +431,17 @@
           </div>
         </section>
 
-        <!-- Media, links & files -->
+        <!-- Media, links &amp; files -->
         <section class="info-card" id="info-media-card">
           <div class="card-head"><h4>Media, links &amp; files</h4></div>
           <div class="media-grid" id="info-media-grid"></div>
           <p class="dm-none" id="info-media-empty">No shared media yet.</p>
         </section>
 
-        <!-- Pinned -->
+        <!-- Encryption -->
         <section class="info-card">
-          <div class="card-head"><h4>Pinned</h4><span class="badge" id="pin-count">0</span></div>
-          <ul class="pin-list" id="pin-list"></ul>
-          <p class="dm-none" id="pin-empty">No pinned messages.</p>
-        </section>
-
-        <!-- Tasks -->
-        <section class="info-card" id="task-card">
-          <div class="card-head"><h4>Tasks</h4><span class="badge" id="task-count">0</span></div>
-          <div class="side-tabs task-tabs" id="task-filters" role="tablist" aria-label="Filter tasks">
-            <button type="button" class="tab active" data-task-filter="open" role="tab" aria-selected="true">Open</button>
-            <button type="button" class="tab" data-task-filter="in_progress" role="tab" aria-selected="false">In progress</button>
-            <button type="button" class="tab" data-task-filter="done" role="tab" aria-selected="false">Done</button>
-            <button type="button" class="tab" data-task-filter="all" role="tab" aria-selected="false">All</button>
-          </div>
-          <ul class="task-list" id="task-list"></ul>
-          <p class="dm-none" id="task-empty">No tasks yet.</p>
-          <div class="option-list room-info-actions">
-            <button class="option-btn" id="btn-new-task">New task</button>
-          </div>
-        </section>
-
-        <!-- Settings -->
-        <section class="info-card">
-          <div class="card-head"><h4>Settings</h4></div>
+          <div class="card-head"><h4>Encryption</h4></div>
           <div class="settings-list">
-            <button type="button" class="settings-row" id="btn-mute" title="Stop notifications for this chat">
-              <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
-              <span class="settings-row-main">Mute notifications</span>
-              <span class="settings-row-value" id="mute-value">Off</span>
-              <span class="settings-row-arrow">›</span>
-            </button>
-
-            <button type="button" class="settings-row" id="btn-wallpaper" title="Choose the chat background">
-              <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>
-              <span class="settings-row-main">Wallpaper</span>
-              <span class="settings-row-value" id="wallpaper-value">Default</span>
-              <span class="settings-row-arrow">›</span>
-            </button>
-
-            <button type="button" class="settings-row" id="btn-disappear" title="Automatically remove messages after a while">
-              <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span>
-              <span class="settings-row-main">Disappearing messages</span>
-              <span class="settings-row-value" id="disappear-value">Off</span>
-              <span class="settings-row-arrow">›</span>
-            </button>
-
             <div class="settings-row static" id="encryption-row">
               <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
               <span class="settings-row-main">Messages are end-to-end encrypted</span>
@@ -688,8 +454,6 @@
           <div class="card-head"><h4>Actions</h4></div>
           <div class="option-list">
             <button class="option-btn" id="btn-clear-messages">Clear messages</button>
-            <button class="option-btn danger is-hidden" id="btn-block">Block contact</button>
-            <button class="option-btn is-hidden" id="btn-unblock">Unblock contact</button>
             <button class="option-btn" id="btn-restore">Restore deleted chats</button>
             <button class="option-btn danger is-hidden" id="btn-dissolve-room">Dissolve room</button>
             <button class="option-btn danger" id="btn-delete-chat">Delete chat</button>
@@ -727,114 +491,6 @@
       </div>
     </dialog>
 
-    <!-- Edit Room Settings Dialog -->
-    <dialog class="modal" id="room-settings-dialog">
-      <div class="modal-content">
-        <header class="modal-head">
-          <h3>Edit room settings</h3>
-          <button class="icon-btn" id="room-settings-dialog-close" title="Close">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </header>
-
-        <form class="modal-form" id="room-settings-form">
-          <div class="field">
-            <label for="room-settings-avatar">Room photo</label>
-            <input id="room-settings-avatar" type="file" name="avatar" autocomplete="off" accept="image/png,image/jpeg,image/webp" />
-            <p class="field-hint">Leave empty to keep the current photo.</p>
-          </div>
-
-          <div class="field">
-            <label for="room-settings-name">Room name</label>
-            <input id="room-settings-name" type="text" name="name" maxlength="80" autocomplete="off" placeholder="Room name" required />
-          </div>
-
-          <div class="field">
-            <label for="room-settings-desc">Room description</label>
-            <textarea id="room-settings-desc" name="description" rows="3" maxlength="500" autocomplete="off" placeholder="What is this room about?"></textarea>
-          </div>
-
-          <div class="error-box" id="room-settings-error" role="alert" hidden></div>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-ghost" id="room-settings-cancel">Cancel</button>
-            <button type="submit" class="btn-primary">Save settings</button>
-          </div>
-        </form>
-      </div>
-    </dialog>
-
-    <!-- Clear Messages Dialog -->
-    <dialog class="modal modal-small" id="clear-dialog">
-      <div class="modal-content">
-        <header class="modal-head">
-          <h3>Clear messages</h3>
-          <button class="icon-btn" id="clear-dialog-close" title="Close">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </header>
-        <div class="clear-options">
-          <button type="button" class="clear-option" id="btn-clear-for-me">
-            <span class="clear-option-main">Clear for me</span>
-            <span class="clear-option-sub">Remove messages from this device only.</span>
-          </button>
-          <button type="button" class="clear-option danger" id="btn-clear-for-everyone">
-            <span class="clear-option-main">Clear for everyone</span>
-            <span class="clear-option-sub">Mark all messages as deleted for every member.</span>
-          </button>
-        </div>
-      </div>
-    </dialog>
-
-    <!-- Wallpaper Dialog -->
-    <dialog class="modal modal-small" id="wallpaper-dialog">
-      <div class="modal-content">
-        <header class="modal-head">
-          <h3>Chat wallpaper</h3>
-          <button class="icon-btn" id="wallpaper-dialog-close" title="Close">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </header>
-        <div class="wallpaper-grid" id="wallpaper-grid">
-          <button type="button" class="wallpaper-swatch is-active" data-wallpaper="" title="Default">
-            <span class="wallpaper-swatch-swatch default">D</span>
-            <span class="wallpaper-swatch-name">Default</span>
-          </button>
-        </div>
-      </div>
-    </dialog>
-
-    <!-- Disappearing Messages Dialog -->
-    <dialog class="modal modal-small" id="disappear-dialog">
-      <div class="modal-content">
-        <header class="modal-head">
-          <h3>Disappearing messages</h3>
-          <button class="icon-btn" id="disappear-dialog-close" title="Close">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </header>
-        <div class="clear-options">
-          <button type="button" class="clear-option" data-disappear-seconds="0">
-            <span class="clear-option-main">Off</span>
-            <span class="clear-option-sub">Messages stay until someone deletes them.</span>
-          </button>
-          <button type="button" class="clear-option" data-disappear-seconds="86400">
-            <span class="clear-option-main">24 hours</span>
-            <span class="clear-option-sub">New messages disappear after a day.</span>
-          </button>
-          <button type="button" class="clear-option" data-disappear-seconds="604800">
-            <span class="clear-option-main">7 days</span>
-            <span class="clear-option-sub">New messages disappear after a week.</span>
-          </button>
-          <button type="button" class="clear-option" data-disappear-seconds="7776000">
-            <span class="clear-option-main">90 days</span>
-            <span class="clear-option-sub">New messages disappear after three months.</span>
-          </button>
-          <p class="dm-none disappear-hint" id="disappear-hint">Only room admins can change this.</p>
-        </div>
-      </div>
-    </dialog>
-
     <!-- Profile Dialog -->
     <dialog class="modal" id="profile-dialog">
       <div class="modal-content">
@@ -859,11 +515,6 @@
           <div class="field">
             <label for="profile-status">Status</label>
             <input id="profile-status" type="text" name="statusText" maxlength="120" autocomplete="off" placeholder="What are you working on?" />
-          </div>
-
-          <div class="field">
-            <label for="profile-dob">Date of birth</label>
-            <input id="profile-dob" type="date" name="dob" />
           </div>
 
           <div class="field">
@@ -967,108 +618,6 @@
             <button type="submit" class="btn-primary">Search</button>
           </div>
         </form>
-      </div>
-    </dialog>
-
-    <!-- Task Editor Dialog -->
-    <dialog class="modal" id="task-dialog">
-      <div class="modal-content">
-        <header class="modal-head">
-          <h3 id="task-dialog-title">New task</h3>
-          <button class="icon-btn" id="task-dialog-close" title="Close">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </header>
-
-        <form class="modal-form" id="task-form">
-          <div class="field">
-            <label for="task-title">What needs doing?</label>
-            <input id="task-title" type="text" name="title" maxlength="200" autocomplete="off" placeholder="Task title" required />
-          </div>
-
-          <div class="field">
-            <label for="task-desc">Details <span class="field-optional">(optional)</span></label>
-            <textarea id="task-desc" name="description" rows="3" maxlength="2000" autocomplete="off" placeholder="Add context, links, or acceptance criteria"></textarea>
-          </div>
-
-          <div class="field-row">
-            <div class="field">
-              <label for="task-assignee">Assign to</label>
-              <select id="task-assignee" name="assignee_id">
-                <option value="">Nobody</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label for="task-due">Due date</label>
-              <input id="task-due" type="date" name="due_at" autocomplete="off" />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="task-status">Status</label>
-            <select id="task-status" name="status">
-              <option value="open">Open</option>
-              <option value="in_progress">In progress</option>
-              <option value="done">Done</option>
-            </select>
-          </div>
-
-          <blockquote class="task-source" id="task-source" hidden></blockquote>
-
-          <div class="error-box" id="task-error" role="alert" hidden></div>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-ghost danger" id="task-delete" hidden>Delete</button>
-            <button type="button" class="btn-ghost" id="task-cancel">Cancel</button>
-            <button type="submit" class="btn-primary" id="task-save">Save task</button>
-          </div>
-        </form>
-      </div>
-    </dialog>
-
-    <!-- Two-Factor (MFA) Setup Dialog -->
-    <dialog class="modal" id="mfa-dialog">
-      <div class="modal-content">
-        <header class="modal-head">
-          <h3>Set up two-factor authentication</h3>
-          <button class="icon-btn" id="mfa-dialog-close" title="Close">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </header>
-
-        <div class="mfa-step" id="mfa-step-enroll">
-          <p class="confirm-message">
-            Scan this code with your authenticator app (Google Authenticator, Authy, 1Password…),
-            then enter the 6-digit code it generates to confirm.
-          </p>
-          <div class="mfa-qr">
-            <img id="mfa-qr" alt="QR code to scan with your authenticator app" />
-          </div>
-          <p class="mfa-secret-label">Or enter this code manually:</p>
-          <p class="mfa-secret" id="mfa-secret"></p>
-          <div class="modal-actions">
-            <button type="button" class="btn-ghost" id="mfa-cancel">Cancel</button>
-            <button type="button" class="btn-primary" id="mfa-scanned">I've scanned the code</button>
-          </div>
-        </div>
-
-        <div class="mfa-step is-hidden" id="mfa-step-verify">
-          <p class="confirm-message">Enter the 6-digit code generated by your app to enable 2FA.</p>
-          <div class="otp-boxes" id="mfa-verify-boxes" aria-label="Two-factor verification code">
-            <input type="tel" id="mfa-verify-digit-0" name="mfav0" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1" />
-            <input type="tel" id="mfa-verify-digit-1" name="mfav1" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 2" />
-            <input type="tel" id="mfa-verify-digit-2" name="mfav2" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 3" />
-            <input type="tel" id="mfa-verify-digit-3" name="mfav3" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 4" />
-            <input type="tel" id="mfa-verify-digit-4" name="mfav4" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 5" />
-            <input type="tel" id="mfa-verify-digit-5" name="mfav5" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 6" />
-          </div>
-          <div class="error-box" id="mfa-setup-error" role="alert" hidden></div>
-          <div class="modal-actions">
-            <button type="button" class="btn-ghost" id="mfa-verify-back">Back</button>
-            <button type="button" class="btn-primary" id="btn-mfa-verify">Verify & enable</button>
-          </div>
-        </div>
       </div>
     </dialog>
 

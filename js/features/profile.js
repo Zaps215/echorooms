@@ -20,32 +20,28 @@ import {
   closeInfo,
 } from "../core/navigation.js";
 import { showConfirm } from "../core/confirm.js";
-import { renderMfaStatus } from "./mfa.js";
 
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
 let currentProfile = null;
 
-/** True when the signed-in user has chosen a unique @username. */
-export function hasUsername() {
-  return !!(currentProfile && currentProfile.username);
+/** True when the signed-in user still needs to claim a @username. */
+export function needsUsername() {
+  return !getCurrentUsername();
 }
 
 function getCurrentUsername() {
   return (currentProfile && currentProfile.username) || "";
 }
 
-/**
- * Claims a unique @username for the current user. Shared by the legacy
- * username dialog and the first-run onboarding page.
- */
+/** Claims a unique @username for the current user. */
 export async function claimUsername(username) {
   if (!supabase || !state.currentUser) return { error: { message: "Not signed in." } };
   return supabase.from("profiles").update({ username }).eq("id", state.currentUser.id);
 }
 
-/** Opens the first-run dialog that asks the user to claim a @username. */
-export function openUsernameOnboarding() {
+/** Opens the dialog that asks the user to claim a @username. */
+export function openUsernameDialog() {
   if (!dom.usernameDialog || dom.usernameDialog.open) return;
   hideError(dom.usernameError);
   dom.usernameForm.reset();
@@ -94,10 +90,6 @@ export async function loadProfile() {
     dom.profileUsername.disabled = !!data.username;
     dom.profileStatus.value = data.status_text || "";
   }
-  dom.profileDob.value = user.user_metadata?.date_of_birth || "";
-
-  // Keep the Security card in sync whenever the profile (re)loads.
-  await renderMfaStatus();
 }
 
 /** Opens the Edit-profile dialog, refreshing the latest profile first. */
@@ -188,18 +180,6 @@ function initDialogControls() {
         return;
       }
 
-      const dob = dom.profileDob.value;
-      if (dob) {
-        const dobResult = await supabase.auth.updateUser({
-          data: { date_of_birth: dob },
-        });
-        if (dobResult.error) {
-          showError(dom.profileError, "Profile saved, but your date of birth couldn't be updated.");
-          submitBtn.disabled = false;
-          return;
-        }
-      }
-
       await loadProfile();
       dom.profileDialog.close();
       dom.profileForm.reset();
@@ -265,7 +245,7 @@ function initInfoPanel() {
   // The info panel's "Invite members" button opens the invite dialog (rooms.js).
 }
 
-function initUsernameOnboarding() {
+function initUsernameDialog() {
   dom.usernameForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!supabase || !state.currentUser) return;
@@ -307,5 +287,5 @@ export function initProfile() {
   initSignOut();
   initAccountDeletion();
   initInfoPanel();
-  initUsernameOnboarding();
+  initUsernameDialog();
 }

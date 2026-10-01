@@ -9,7 +9,7 @@
 import "../css/styles.css";
 import { supabase, isSupabaseConfigured } from "./core/supabase.js";
 import { state, resetAppState } from "./core/state.js";
-import { switchAuthForm, showAppShell, showAuthShell, initNavigation, initBottomNav } from "./core/navigation.js";
+import { switchAuthForm, showAppShell, showAuthShell, initNavigation } from "./core/navigation.js";
 import { initConfirm } from "./core/confirm.js";
 import { ensureIdentity, resetKeyring } from "./core/keyring.js";
 import * as dom from "./core/dom.js";
@@ -17,47 +17,25 @@ import * as dom from "./core/dom.js";
 import { initAuth } from "./features/auth.js";
 import { initOtp } from "./features/otp.js";
 import { initRooms, loadRooms } from "./features/rooms.js";
-import { initProfile, loadProfile, hasUsername } from "./features/profile.js";
+import { initProfile, loadProfile } from "./features/profile.js";
 import { initChat, closeRoom } from "./features/chat.js";
-import { initHome, enterHome } from "./features/home.js";
-import { initOnboarding, openOnboarding } from "./features/onboarding.js";
-import { initMfa, requireMfaIfNeeded } from "./features/mfa.js";
-import { initTasks } from "./features/tasks.js";
 
 // --- Feature wiring (listener setup only) ---
 initNavigation();
-initBottomNav();
 initConfirm();
 initAuth();
 initOtp();
 initRooms();
 initProfile();
 initChat();
-initHome();
-initOnboarding();
-initMfa();
-initTasks();
 
 // --- Session lifecycle ---
 async function enterApp(user) {
   state.currentUser = user;
-
-  // Accounts with a verified TOTP factor must prove a 6-digit code before the
-  // app shell is reachable. requireMfaIfNeeded shows the overlay and leaves the
-  // auth view visible until mfa.verify promotes the session (MFA_CHALLENGE_VERIFIED
-  // re-runs enterApp below).
-  if (await requireMfaIfNeeded()) return;
-
   showAppShell();
   await ensureIdentity();
-  const roomCount = await loadRooms();
+  await loadRooms();
   await loadProfile();
-  if (!hasUsername()) {
-    openOnboarding();
-  }
-  if (roomCount === 0) {
-    enterHome();
-  }
 }
 
 function exitToAuth() {
@@ -71,7 +49,7 @@ function exitToAuth() {
 // email (some Supabase "Sign in" templates render a link instead of a code).
 // They must set a new password first, so take the auth shell's recovery form
 // rather than the app shell. Once updateUser succeeds, the resulting
-// USER_UPDATED event re-enters normally (MFA gate applies then too).
+// USER_UPDATED event re-enters normally.
 function enterRecovery(user) {
   state.currentUser = user;
   closeRoom();
@@ -83,7 +61,7 @@ function enterRecovery(user) {
 }
 
 if (isSupabaseConfigured) {
-  // Realtime auth state changes (sign-in, sign-out, session refresh, MFA verify).
+  // Realtime auth state changes (sign-in, sign-out, session refresh).
   supabase.auth.onAuthStateChange((event, session) => {
     if (session) {
       if (event === "PASSWORD_RECOVERY") {

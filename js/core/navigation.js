@@ -1,5 +1,9 @@
 // Navigation between the auth shell and the application shell, plus the
 // password reveal toggle. These are shared by the auth and OTP flows.
+//
+// The app shell is two panes: the chat list (sidebar) and the conversation.
+// On wide viewports both are visible at once; on narrow ones a single
+// `chat-open` class on the app wrapper swaps between them.
 
 import * as dom from "./dom.js";
 
@@ -19,93 +23,50 @@ export function showAuthShell() {
   dom.appWrapper.classList.add("is-hidden");
   dom.authWrapper.classList.remove("is-hidden");
   if (dom.info) dom.info.classList.add("is-hidden");
-  closeSidebar();
   closeInfo();
   switchAuthForm("signin");
 }
 
-/** Shows the first-run homepage, hiding any room or empty chat state. */
-export function showHome() {
-  if (dom.homeView) dom.homeView.classList.remove("is-hidden");
-  if (dom.chatEmpty) dom.chatEmpty.classList.add("is-hidden");
-  if (dom.chatActive) dom.chatActive.classList.add("is-hidden");
+// --- Chat list / conversation panes -----------------------------------------
+
+/** Shows the chat list alone. On narrow viewports this leaves the conversation. */
+export function showChatList() {
+  dom.appWrapper.classList.remove("chat-open");
   closeInfo();
-  if (dom.info) dom.info.classList.add("is-hidden");
-  setBottomTab("chats");
 }
 
-/** Shows the active room chat, hiding the homepage. */
+/** Shows the open conversation. */
 export function showRoomChat() {
-  if (dom.homeView) dom.homeView.classList.add("is-hidden");
+  dom.appWrapper.classList.add("chat-open");
   if (dom.chatEmpty) dom.chatEmpty.classList.add("is-hidden");
   if (dom.chatActive) dom.chatActive.classList.remove("is-hidden");
-  if (dom.sidebar) dom.sidebar.classList.remove("open");
   closeInfo();
-  syncDrawerBackdrop();
-  setBottomTab("chats");
 }
 
-// --- Mobile drawer navigation ---
-// The sidebar and info panel become off-canvas drawers below the desktop
-// breakpoints. These helpers centralize opening/closing so feature modules
-// never touch the drawer classes directly.
-
-export function openSidebar() {
-  if (dom.sidebar) dom.sidebar.classList.add("open");
-  closeInfo();
-  syncDrawerBackdrop();
-}
-
-export function closeSidebar() {
-  if (dom.sidebar) dom.sidebar.classList.remove("open");
-  syncDrawerBackdrop();
-}
-
-export function toggleSidebar() {
-  const isOpen = dom.sidebar?.classList.contains("open");
-  if (isOpen) {
-    closeSidebar();
-  } else {
-    openSidebar();
-  }
-}
-
-export function closeInfo() {
-  if (dom.info) dom.info.classList.remove("open");
-  syncDrawerBackdrop();
-}
-
-// --- First-run onboarding ---
-// A full-page overlay inside the app shell shown until the user claims their
-// @username. Its optional profile fields (display name, DoB, avatar) can be
-// updated any time from the profile page.
-
-export function showOnboarding() {
-  if (dom.onboardingView) dom.onboardingView.classList.remove("is-hidden");
-}
-
-export function hideOnboarding() {
-  if (dom.onboardingView) dom.onboardingView.classList.add("is-hidden");
-}
+// --- Info drawer ------------------------------------------------------------
+// The chat info panel slides over the conversation on every viewport width.
 
 export function openInfo() {
   if (!dom.info) return;
-  closeSidebar();
   dom.info.classList.remove("is-hidden");
   dom.info.classList.add("open");
   syncDrawerBackdrop();
 }
 
-// --- Profile page ---
-// The profile view overlays the center column. The view beneath it is never
+export function closeInfo() {
+  if (!dom.info) return;
+  dom.info.classList.remove("open");
+  syncDrawerBackdrop();
+}
+
+// --- Profile view ------------------------------------------------------------
+// The profile view overlays the app shell. The view beneath it is never
 // hidden, so closing the profile simply reveals whatever was open before.
 
 export function showProfile() {
   if (!dom.profileView) return;
-  closeSidebar();
   closeInfo();
   dom.profileView.classList.remove("is-hidden");
-  setBottomTab("settings");
 }
 
 export function hideProfile() {
@@ -114,55 +75,17 @@ export function hideProfile() {
 
 function syncDrawerBackdrop() {
   if (!dom.drawerBackdrop) return;
-  const drawerOpen =
-    dom.sidebar?.classList.contains("open") || dom.info?.classList.contains("open");
-  dom.drawerBackdrop.classList.toggle("show", drawerOpen);
-}
-
-/** Makes a single bottom-nav tab active (chats | contacts | settings). */
-export function setBottomTab(tab) {
-  if (!dom.bottomNav) return;
-  dom.bottomNav.querySelectorAll(".bottom-tab").forEach((b) => {
-    b.classList.toggle("active", b.dataset.nav === tab);
-  });
-}
-
-/**
- * Wires the mobile bottom navigation. The Contacts tab can't import the rooms
- * feature (circular import), so it emits an event that rooms.js subscribes to.
- */
-export function initBottomNav() {
-  if (!dom.bottomNav) return;
-  dom.bottomNav.querySelectorAll(".bottom-tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      switch (tab.dataset.nav) {
-        case "chats":
-          dom.profileView?.classList.add("is-hidden");
-          showHome();
-          break;
-        case "contacts":
-          window.dispatchEvent(new CustomEvent("echorooms:open-dm"));
-          break;
-        case "settings":
-          showProfile();
-          break;
-      }
-    });
-  });
+  dom.drawerBackdrop.classList.toggle("show", Boolean(dom.info?.classList.contains("open")));
 }
 
 /** Wires the shared drawer backdrop and Escape-to-close behavior. */
 export function initNavigation() {
-  dom.drawerBackdrop?.addEventListener("click", () => {
-    closeSidebar();
-    closeInfo();
-  });
+  dom.drawerBackdrop?.addEventListener("click", closeInfo);
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     // Native dialogs handle Escape themselves (cancel). Leave them alone.
     if (document.querySelector("dialog[open]")) return;
-    closeSidebar();
     closeInfo();
     hideProfile();
   });

@@ -8,14 +8,13 @@ import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
 import { showError, hideError, escapeHtml, avatarColor } from "../core/utils.js";
-import { showRoomChat, closeSidebar, closeInfo, showHome } from "../core/navigation.js";
+import { showRoomChat, closeInfo, showChatList } from "../core/navigation.js";
 import { showConfirm } from "../core/confirm.js";
-import { openRoom, closeRoom, getPins, getPresence, getRoomMembers, EVENTS, unpinMessage, setComposerNotice, setRoomDisappear, clearLocalMessages } from "./chat.js";
+import { openRoom, closeRoom, getRoomMembers, setComposerNotice, clearLocalMessages } from "./chat.js";
 import { chatHeaderView } from "../core/chat-header.js";
 import { decryptAttachment, isImageMime } from "./media.js";
-import { onRoomOpened as onTasksRoomOpened } from "./tasks.js";
 import { getIdentity, createRoomKey, getRoomKey, shareRoomKey, canManageRoom } from "../core/keyring.js";
-import { randomUUID } from "../core/crypto.js";
+import { needsUsername, openUsernameDialog } from "./profile.js";
 
 const ROOM_PALETTE = [
   "#2563eb",
@@ -28,75 +27,23 @@ const ROOM_PALETTE = [
   "#b45309",
 ];
 
-// Cached member rows + admin flag so presence/pin events re-render without a
-// fresh room_members query on every realtime heartbeat.
+// Cached member rows + admin flag so member events re-render without a fresh
+// room_members query on every realtime update.
 let membersCache = [];
 let membersCacheRoomId = null;
 let membersCacheIsAdmin = false;
 
-// --- WhatsApp-style chat settings state --------------------------------------
-
-const WALLPAPERS = [
-  { name: "Default", bg: "" },
-  { name: "Sand", bg: "#e9e2d5" },
-  { name: "Sky", bg: "#d0e1f0" },
-  { name: "Mint", bg: "#cfe6d8" },
-  { name: "Lilac", bg: "#e2daf0" },
-  { name: "Rose", bg: "#f0d9df" },
-];
-
-const DISAPPEAR_LABELS = {
-  "0": "Off",
-  "86400": "24 hours",
-  "604800": "7 days",
-  "7776000": "90 days",
-};
-
-let activeWallpaper = "";
-let activeMuted = false;
-let activeDisappearSeconds = 0;
 let otherContact = null; // counterparty profile in a direct chat
-let blockedWith = null; // user id we currently block in this room (or reversed)
 let mediaGridUrls = [];
-let roomAvatarUrl = "";
 
-function resetChatSettingsState() {
-  activeWallpaper = "";
-  activeMuted = false;
-  activeDisappearSeconds = 0;
+function resetInfoState() {
   otherContact = null;
-  blockedWith = null;
   revokeMediaGridUrls();
-  revokeRoomAvatar();
 }
 
 function revokeMediaGridUrls() {
   mediaGridUrls.forEach((u) => URL.revokeObjectURL(u));
   mediaGridUrls = [];
-}
-
-function revokeRoomAvatar() {
-  if (roomAvatarUrl) URL.revokeObjectURL(roomAvatarUrl);
-  roomAvatarUrl = "";
-}
-
-function wallpapersMatch(label) {
-  return WALLPAPERS.find((w) => w.name === label) ? label : "";
-}
-
-function disappearLabel(seconds) {
-  return DISAPPEAR_LABELS[String(seconds || 0)] || "Off";
-}
-
-function applyChatWallpaper(bg) {
-  if (dom.messagesEl) dom.messagesEl.style.background = bg;
-}
-
-function setSettingsRowValues() {
-  if (dom.muteValue) dom.muteValue.textContent = activeMuted ? "On" : "Off";
-  if (dom.wallpaperValue) dom.wallpaperValue.textContent = activeWallpaper || "Default";
-  if (dom.disappearValue) dom.disappearValue.textContent = disappearLabel(activeDisappearSeconds);
-  renderWallpaperDialog();
 }
 
 function renderMembersList() {
@@ -107,47 +54,17 @@ function renderMembersList() {
     return;
   }
   if (dom.memberCount) dom.memberCount.textContent = String(membersCache.length);
-  const presence = getPresence();
   const currentUserId = state.currentUser?.id;
 
   dom.memberList.innerHTML = membersCache
     .map((m) => {
       const p = m.profiles || {};
       const name = p.display_name || p.username || "Member";
-      const online = presence.has(m.user_id);
       const isMe = m.user_id === currentUserId;
       return `
         <li>
           <span class="member-avatar" style="background:${avatarColor(name)}">${escapeHtml(name.charAt(0).toUpperCase())}</span>
           <span class="member-name">${escapeHtml(name)}${isMe ? " (you)" : ""}</span>
-          <span class="member-presence ${online ? "online" : "offline"}">${online ? "online" : "offline"}</span>
-        </li>`;
-    })
-    .join("");
-}
-
-function renderPinnedSection(roomId) {
-  if (!dom.pinList) return;
-  const pins = getPins();
-  if (dom.pinCount) dom.pinCount.textContent = String(pins.length);
-
-  if (!pins.length) {
-    dom.pinList.innerHTML = "";
-    if (dom.pinEmpty) dom.pinEmpty.hidden = false;
-    return;
-  }
-  if (dom.pinEmpty) dom.pinEmpty.hidden = true;
-  dom.pinList.innerHTML = pins
-    .map((pin) => {
-      const name =
-        (pin.sender && (pin.sender.display_name || pin.sender.username)) || "Member";
-      return `
-        <li class="pin-item">
-          <div class="pin-main">
-            <span class="pin-text">${escapeHtml(pin.text || "")}</span>
-            <span class="pin-meta">${escapeHtml(name)}</span>
-          </div>
-          ${membersCacheIsAdmin ? `<button type="button" class="pin-unpin" data-unpin="${pin.message_id}" title="Unpin">✕</button>` : ""}
         </li>`;
     })
     .join("");
@@ -204,11 +121,6 @@ async function renderRoomInfo(room) {
   if (dom.memberCount) dom.memberCount.textContent = "0";
   if (dom.infoMediaGrid) dom.infoMediaGrid.innerHTML = "";
   if (dom.infoMediaEmpty) dom.infoMediaEmpty.hidden = false;
-  if (dom.pinList) dom.pinList.innerHTML = "";
-  if (dom.pinCount) dom.pinCount.textContent = "0";
-  if (dom.taskList) dom.taskList.innerHTML = "";
-  if (dom.taskCount) dom.taskCount.textContent = "0";
-  if (dom.taskEmpty) dom.taskEmpty.hidden = false;
 
   const isAdmin = await canManageRoom(room.id);
   if (dom.btnDissolveRoom) {
@@ -216,24 +128,17 @@ async function renderRoomInfo(room) {
   }
   membersCacheIsAdmin = isAdmin;
 
-  // Distinguish "room settings" (groups, admins) from "contact info" (DMs).
-  dom.btnEditRoom?.classList.toggle("is-hidden", room.room_type !== "group" || !isAdmin);
+  // Inviting is a group-only affordance; DMs are two people by definition.
   dom.btnInvite?.classList.toggle("is-hidden", room.room_type !== "group");
 
-  resetChatSettingsState();
-  setSettingsRowValues();
+  resetInfoState();
 
-  const [
-    { data: roomData },
-    { data: prefData },
-    { data: membersData },
-  ] = await Promise.all([
+  const [{ data: roomData }, { data: membersData }] = await Promise.all([
     supabase
       .from("rooms")
-      .select("id, name, description, avatar_path, disappear_after, room_type, created_by, deleted_at")
+      .select("id, name, room_type, created_by, deleted_at")
       .eq("id", room.id)
       .single(),
-    supabase.from("room_prefs").select("muted, wallpaper").eq("room_id", room.id).eq("user_id", state.currentUser.id).maybeSingle(),
     supabase
       .from("room_members")
       .select("user_id, role, profiles(display_name, username, status_text)")
@@ -243,28 +148,17 @@ async function renderRoomInfo(room) {
   if (state.currentRoomId !== room.id) return;
 
   const roomRow = roomData || {};
-  settingsRoomRow = roomRow;
-  activeDisappearSeconds = roomRow.disappear_after || 0;
-  activeMuted = Boolean(prefData?.muted);
-  activeWallpaper = wallpapersMatch(prefData?.wallpaper || "");
   membersCache = membersData || [];
   membersCacheRoomId = room.id;
-  setRoomDisappear(activeDisappearSeconds || 0);
-  applyChatWallpaper(activeWallpaper ? WALLPAPERS.find((w) => w.name === activeWallpaper)?.bg : "");
 
   renderMembersList();
-  renderPinnedSection(room.id);
-  onTasksRoomOpened(room.id);
   renderRoomHero(roomRow);
   loadMediaGallery(room.id);
-  setSettingsRowValues();
 
-  // Direct chats: identify the counterparty and the block state.
+  // Direct chats: identify the counterparty.
   if (room.room_type === "direct") {
     const other = (membersCache || []).find((m) => m.user_id !== state.currentUser?.id);
     otherContact = other?.profiles || null;
-    renderContactInfo();
-    await loadBlockState();
     renderContactInfo();
   }
 }
@@ -272,72 +166,35 @@ async function renderRoomInfo(room) {
 function renderRoomHero(room) {
   if (!dom.infoRoomName || !dom.infoRoomAvatar) return;
   dom.infoRoomName.textContent = room.name || "";
-  dom.infoRoomDesc.textContent = room.description || "";
-  dom.infoRoomDesc.hidden = !room.description;
-  const tag = room.room_type === "direct"
-    ? "Direct chat"
-    : `${room.room_type === "group" ? "Group" : "Room"} · ${membersCache.length} members`;
+  const tag =
+    room.room_type === "direct"
+      ? "Direct chat"
+      : `${room.room_type === "group" ? "Group" : "Room"} · ${membersCache.length} members`;
   if (dom.infoRoomTag) dom.infoRoomTag.textContent = tag;
 
-  if (room.avatar_path) {
-    loadRoomAvatar(room.id, room.avatar_path);
-  } else {
-    dom.infoRoomAvatar.textContent =
-      (room.name || "?").trim().charAt(0).toUpperCase() || "?";
-    dom.infoRoomAvatar.style.background = avatarColor(room.name);
-  }
-}
-
-async function loadRoomAvatar(roomId, path) {
-  const avatarEl = dom.infoRoomAvatar;
-  if (!avatarEl) return;
-  avatarEl.textContent = "";
-  const spinner = document.createElement("span");
-  spinner.className = "spinner-ring";
-  avatarEl.appendChild(spinner);
-  try {
-    const { data } = await supabase.storage
-      .from("room-avatars")
-      .createSignedUrl(path, 600);
-    if (!data?.signedUrl) throw new Error("no-url");
-    const url = await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img.src);
-      img.onerror = () => reject(new Error("load-failed"));
-      img.src = data.signedUrl;
-    });
-    if (roomAvatarUrl) URL.revokeObjectURL(roomAvatarUrl);
-    roomAvatarUrl = url;
-    if (state.currentRoomId === roomId && avatarEl) {
-      avatarEl.innerHTML = "";
-      avatarEl.style.background = "";
-      avatarEl.classList.add("has-img");
-      avatarEl.style.backgroundImage = `url(${url})`;
-    }
-  } catch (err) {
-    avatarEl.innerHTML = "";
-    avatarEl.textContent = "?";
-    avatarEl.style.background = avatarColor("?");
-  }
+  dom.infoRoomAvatar.textContent =
+    (room.name || "?").trim().charAt(0).toUpperCase() || "?";
+  dom.infoRoomAvatar.classList.remove("has-img");
+  dom.infoRoomAvatar.style.backgroundImage = "";
+  dom.infoRoomAvatar.style.background = avatarColor(room.name);
 }
 
 function renderContactInfo() {
-  if (!otherContact) return;
+  if (!otherContact || !dom.infoRoomName) return;
   const c = otherContact;
   const name = c.display_name || c.username || "Contact";
   dom.infoRoomName.textContent = name;
-  dom.infoRoomDesc.textContent = c.username ? `@${c.username}` : "";
-  dom.infoRoomDesc.hidden = false;
-  dom.infoRoomTag.textContent = `Direct chat · ${c.status_text ? c.status_text : "No status"}`;
+  if (dom.infoRoomDesc) {
+    dom.infoRoomDesc.textContent = c.username ? `@${c.username}` : "";
+    dom.infoRoomDesc.hidden = !c.username;
+  }
+  if (dom.infoRoomTag) {
+    dom.infoRoomTag.textContent = `Direct chat · ${c.status_text ? c.status_text : "No status"}`;
+  }
   dom.infoRoomAvatar.textContent = name.trim().charAt(0).toUpperCase();
   dom.infoRoomAvatar.style.background = avatarColor(name);
   dom.infoRoomAvatar.classList.remove("has-img");
   dom.infoRoomAvatar.style.backgroundImage = "";
-  dom.btnBlock?.classList.toggle(
-    "is-hidden",
-    Boolean(blockedWith) || state.currentUser?.id === otherContact?.id
-  );
-  dom.btnUnblock?.classList.toggle("is-hidden", !(blockedWith && blockedWith.me));
 }
 
 async function loadMediaGallery(roomId) {
@@ -393,298 +250,10 @@ async function loadMediaGallery(roomId) {
   );
 }
 
-// --- Chat settings actions ---------------------------------------------------
-
-let settingsRoomRow = {};
-let settingsCanEditDisappear = false;
-
-async function setRoomPrefs(patch) {
-  const roomId = state.currentRoomId;
-  if (!roomId || !supabase || !state.currentUser) return;
-  await supabase.from("room_prefs").upsert(
-    { room_id: roomId, user_id: state.currentUser.id, ...patch },
-    { onConflict: "room_id,user_id" }
-  );
-}
-
-function initMuteAction() {
-  dom.btnMute?.addEventListener("click", async () => {
-    activeMuted = !activeMuted;
-    setSettingsRowValues();
-    await setRoomPrefs({ muted: activeMuted });
-  });
-}
-
-function renderWallpaperDialog() {
-  const grid = dom.wallpaperGrid;
-  if (!grid) return;
-  grid.querySelectorAll(".wallpaper-swatch").forEach((btn) => {
-    btn.classList.toggle("is-active", btn.dataset.wallpaper === activeWallpaper);
-  });
-}
-
-function initWallpaperDialog() {
-  if (!dom.wallpaperGrid || dom.wallpaperGrid.dataset.built) return;
-  dom.wallpaperGrid.dataset.built = "1";
-
-  const swatchesHtml = WALLPAPERS.slice(1)
-    .map(
-      (w) => `
-      <button type="button" class="wallpaper-swatch"
-        data-wallpaper="${w.name}" title="${w.name}">
-        <span class="wallpaper-swatch-preview" style="background:${w.bg}"></span>
-        <span class="wallpaper-swatch-name">${w.name}</span>
-      </button>`
-    )
-    .join("");
-  dom.wallpaperGrid.insertAdjacentHTML("beforeend", swatchesHtml);
-
-  dom.btnWallpaper?.addEventListener("click", () => {
-    renderWallpaperDialog();
-    dom.wallpaperDialog?.showModal();
-  });
-  dom.wallpaperDialogClose?.addEventListener("click", () => dom.wallpaperDialog?.close());
-  dom.wallpaperDialog?.addEventListener("click", (e) => {
-    if (e.target === dom.wallpaperDialog) dom.wallpaperDialog.close();
-  });
-
-  dom.wallpaperGrid.addEventListener("click", async (e) => {
-    const swatch = e.target.closest("[data-wallpaper]");
-    if (!swatch) return;
-    activeWallpaper = wallpapersMatch(swatch.dataset.wallpaper);
-    applyChatWallpaper(WALLPAPERS.find((w) => w.name === activeWallpaper)?.bg || "");
-    dom.wallpaperDialog?.close();
-    setSettingsRowValues();
-    await setRoomPrefs({ wallpaper: activeWallpaper || null });
-  });
-}
-
-function initDisappearDialog() {
-  dom.btnDisappear?.addEventListener("click", () => {
-    const room = currentRoom();
-    if (!room) return;
-    settingsCanEditDisappear = room.room_type === "direct" || membersCacheIsAdmin;
-    dom.disappearDialog?.querySelectorAll(".clear-option").forEach((btn) => {
-      btn.disabled = !settingsCanEditDisappear;
-      btn.classList.toggle(
-        "is-active",
-        String(btn.dataset.disappearSeconds) === String(activeDisappearSeconds)
-      );
-    });
-    if (dom.disappearHint) dom.disappearHint.hidden = settingsCanEditDisappear;
-    dom.disappearDialog?.showModal();
-  });
-
-  dom.disappearDialogClose?.addEventListener("click", () => dom.disappearDialog?.close());
-  dom.disappearDialog?.addEventListener("click", (e) => {
-    if (e.target === dom.disappearDialog) dom.disappearDialog.close();
-  });
-
-  dom.disappearDialog?.addEventListener("click", async (e) => {
-    const opt = e.target.closest("[data-disappear-seconds]");
-    if (!opt || opt.disabled) return;
-    const seconds = Number(opt.dataset.disappearSeconds);
-    if (!supabase || !state.currentRoomId) return;
-    const { error } = await supabase
-      .from("rooms")
-      .update({ disappear_after: seconds > 0 ? seconds : null })
-      .eq("id", state.currentRoomId);
-    if (error) {
-      setComposerNotice("Couldn't update disappearing messages. Only admins can change this.");
-      return;
-    }
-    activeDisappearSeconds = seconds;
-    setRoomDisappear(seconds);
-    setSettingsRowValues();
-    dom.disappearDialog?.close();
-  });
-}
-
-function initRoomSettingsDialog() {
-  dom.btnEditRoom?.addEventListener("click", () => {
-    hideError(dom.roomSettingsError);
-    dom.roomSettingsForm?.reset();
-    dom.roomSettingsName.value = settingsRoomRow.name || "";
-    dom.roomSettingsDesc.value = settingsRoomRow.description || "";
-    dom.roomSettingsDialog?.showModal();
-    dom.roomSettingsName?.focus();
-  });
-
-  dom.roomSettingsDialogClose?.addEventListener("click", () => dom.roomSettingsDialog.close());
-  dom.roomSettingsCancel?.addEventListener("click", () => dom.roomSettingsDialog.close());
-
-  dom.roomSettingsForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const room = currentRoom();
-    if (!room || !supabase) return;
-    const submitBtn = dom.findPrimaryButton(dom.roomSettingsForm);
-    submitBtn.disabled = true;
-    hideError(dom.roomSettingsError);
-
-    const name = dom.roomSettingsName.value.trim();
-    const description = dom.roomSettingsDesc.value.trim();
-    const file = dom.roomSettingsAvatar.files?.[0];
-
-    try {
-      let avatarPath = settingsRoomRow.avatar_path || null;
-      if (file) {
-        const path = `${room.id}/${randomUUID()}`;
-        const { error: upErr } = await supabase.storage
-          .from("room-avatars")
-          .upload(path, file, { contentType: file.type || "image/jpeg", upsert: false });
-        if (upErr) throw new Error("avatar-upload");
-        if (avatarPath) {
-          await supabase.storage.from("room-avatars").remove([avatarPath]).catch(() => {});
-        }
-        avatarPath = path;
-      }
-
-      const { error: updErr } = await supabase
-        .from("rooms")
-        .update({ name, description: description || null, avatar_path: avatarPath })
-        .eq("id", room.id);
-      if (updErr) throw new Error("update");
-
-      room.name = name;
-      room.description = description || null;
-      room.avatar_path = avatarPath;
-      settingsRoomRow = { ...settingsRoomRow, name, description: description || null, avatar_path: avatarPath };
-      dom.roomSettingsDialog.close();
-      if (dom.chatTitle) dom.chatTitle.textContent = name;
-      renderRooms();
-      await renderRoomInfo(room);
-    } catch (err) {
-      showError(dom.roomSettingsError, "Couldn't save room settings. Try again.");
-    } finally {
-      submitBtn.disabled = false;
-    }
-  });
-}
-
-function initClearDialog() {
-  dom.btnClearMessages?.addEventListener("click", () => dom.clearDialog?.showModal());
-  dom.clearDialogClose?.addEventListener("click", () => dom.clearDialog.close());
-  dom.clearDialog?.addEventListener("click", (e) => {
-    if (e.target === dom.clearDialog) dom.clearDialog.close();
-  });
-
-  dom.btnClearForMe?.addEventListener("click", () => {
-    const roomId = state.currentRoomId;
-    if (roomId) clearLocalMessages(roomId);
-    dom.clearDialog.close();
-  });
-
-  dom.btnClearForEveryone?.addEventListener("click", async () => {
-    const room = currentRoom();
-    const roomId = state.currentRoomId;
-    if (!roomId || !room) return;
-    const ok = await showConfirm({
-      title: "Clear for everyone?",
-      message: `All messages in "${room.name}" will be deleted for every member. This can't be undone.`,
-      confirmLabel: "Clear for everyone",
-      danger: true,
-    });
-    if (!ok) return;
-    const { error } = await supabase.rpc("clear_room_messages", { target_room_id: roomId });
-    if (error) {
-      setComposerNotice("Only admins can clear messages for everyone in groups.");
-      return;
-    }
-    dom.clearDialog.close();
-    await openRoomClean(roomId);
-  });
-}
-
-async function openRoomClean(roomId) {
-  const room = state.rooms.find((r) => r.id === roomId);
-  if (!room) return;
-  await openRoom(roomId);
-  await renderRoomInfo(room);
-  renderRooms();
-}
-
-function initBlockActions() {
-  dom.btnBlock?.addEventListener("click", async () => {
-    const contact = otherContact;
-    if (!contact || !state.currentUser) return;
-    const name = contact.display_name || contact.username || "this contact";
-    const ok = await showConfirm({
-      title: "Block contact?",
-      message: `${name} won't be able to send you messages, and your chat with them will be removed.`,
-      confirmLabel: "Block",
-      danger: true,
-    });
-    if (!ok) return;
-    await supabase
-      .from("blocks")
-      .insert({ blocker_id: state.currentUser.id, blocked_id: contact.id });
-    blockedWith = { me: true };
-    await deleteChat();
-  });
-
-  dom.btnUnblock?.addEventListener("click", async () => {
-    const contact = otherContact;
-    if (!contact || !state.currentUser) return;
-    const ok = await showConfirm({
-      title: "Unblock contact?",
-      message: `${contact.display_name || contact.username || "They"} can message you again.`,
-      confirmLabel: "Unblock",
-    });
-    if (!ok) return;
-    await supabase
-      .from("blocks")
-      .delete()
-      .eq("blocker_id", state.currentUser.id)
-      .eq("blocked_id", contact.id);
-    blockedWith = null;
-    renderContactInfo();
-  });
-}
-
-async function loadBlockState() {
-  if (!otherContact || !state.currentUser) {
-    blockedWith = null;
-    return;
-  }
-  const meId = state.currentUser.id;
-  const otherId = otherContact.id;
-  const { data: mine } = await supabase
-    .from("blocks")
-    .select("blocked_id")
-    .eq("blocker_id", meId)
-    .eq("blocked_id", otherId)
-    .maybeSingle();
-  if (mine) {
-    blockedWith = { me: true };
-    return;
-  }
-  const { data: theirs } = await supabase
-    .from("blocks")
-    .select("blocker_id")
-    .eq("blocker_id", otherId)
-    .eq("blocked_id", meId)
-    .maybeSingle();
-  blockedWith = theirs ? { me: false } : null;
-}
-
-function initWallpaperReset() {
-  window.addEventListener("echorooms:room-closed", () => {
-    applyChatWallpaper("");
-    resetChatSettingsState();
-  });
-
-  // Keeps the header avatar's presence dot and "Active now" in step with the
-  // realtime channel.
-  window.addEventListener(EVENTS.presence, renderChatHeader);
-}
-
-/**
+ /**
  * Header avatar + subtitle for the open room. A direct room shows the other
- * participant and their live presence; a group shows its own initials and a
- * member count, since no single user represents it.
- *
- * Re-runs on every presence sync, so the dot and "Active now" stay truthful as
- * the other person comes and goes.
+ * participant; a group shows its own initials and a member count, since no
+ * single user represents it.
  */
 function renderChatHeader() {
   const room = state.rooms.find((r) => r.id === state.currentRoomId);
@@ -694,15 +263,11 @@ function renderChatHeader() {
     room,
     members: getRoomMembers(room.id),
     currentUserId: state.currentUser?.id,
-    onlineUserIds: new Set(getPresence().keys()),
   });
   if (!view) return;
 
   dom.chatAvatar.textContent = view.label.charAt(0).toUpperCase();
   dom.chatAvatar.style.background = avatarColor(view.label);
-  if (dom.chatPresenceDot) {
-    dom.chatPresenceDot.classList.toggle("is-hidden", !view.presence);
-  }
   if (dom.chatSubtitle) dom.chatSubtitle.textContent = view.subtitle;
 }
 
@@ -751,7 +316,6 @@ export async function loadRooms() {
 
 export function openRoomDialog() {
   hideError(dom.roomError);
-  closeSidebar();
   closeInfo();
   dom.roomForm.reset();
   dom.roomDialog.showModal();
@@ -823,8 +387,12 @@ function initSidebar() {
 const dmResultsMap = new Map();
 
 function openDmDialog() {
+  // People are found by @username, so claim one first if it's still missing.
+  if (needsUsername()) {
+    openUsernameDialog();
+    return;
+  }
   hideError(dom.dmError);
-  closeSidebar();
   closeInfo();
   dom.dmForm.reset();
   dom.dmResults.innerHTML = "";
@@ -973,7 +541,6 @@ function currentRoom() {
 
 function openInviteDialog() {
   hideError(dom.inviteError);
-  closeSidebar();
   closeInfo();
   dom.inviteForm.reset();
   dom.inviteResults.innerHTML = "";
@@ -1098,6 +665,21 @@ function initInviteDialog() {
   });
 }
 
+function initClearMessages() {
+  dom.btnClearMessages?.addEventListener("click", async () => {
+    const room = currentRoom();
+    if (!room) return;
+    const ok = await showConfirm({
+      title: "Clear chat?",
+      message: `Messages in "${room.name}" will be removed from this device only. Members keep their copies.`,
+      confirmLabel: "Clear chat",
+      danger: true,
+    });
+    if (!ok) return;
+    clearLocalMessages(room.id);
+  });
+}
+
 // --- Delete / dissolve / restore -------------------------------------------
 
 async function leaveCurrentRoom(roomId) {
@@ -1108,7 +690,7 @@ async function leaveCurrentRoom(roomId) {
       selectRoom(state.rooms[0].id);
     } else {
       closeRoom();
-      showHome();
+      showChatList();
     }
   }
 }
@@ -1238,37 +820,11 @@ function initRestoreAndDanger() {
   });
 }
 
-function initInfoActions() {
-  dom.pinList?.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-unpin]");
-    if (!btn) return;
-    unpinMessage(state.currentRoomId, btn.dataset.unpin);
-  });
-
-  window.addEventListener(EVENTS.pins, () => {
-    if (membersCacheRoomId === state.currentRoomId && state.currentRoomId) {
-      renderPinnedSection(state.currentRoomId);
-    }
-  });
-  window.addEventListener(EVENTS.presence, () => {
-    if (membersCacheRoomId === state.currentRoomId && state.currentRoomId) {
-      renderMembersList();
-    }
-  });
-}
-
 export function initRooms() {
   initRoomDialog();
   initDmDialog();
   initInviteDialog();
   initSidebar();
   initRestoreAndDanger();
-  initInfoActions();
-  initMuteAction();
-  initWallpaperDialog();
-  initDisappearDialog();
-  initRoomSettingsDialog();
-  initClearDialog();
-  initBlockActions();
-  initWallpaperReset();
+  initClearMessages();
 }

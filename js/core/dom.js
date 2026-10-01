@@ -22,40 +22,6 @@ function queryAll(selector) {
 
 export const authWrapper = query("auth-wrapper");
 export const appWrapper = query("app-wrapper");
-export const sidebar = query("sidebar");
-
-export const onboardingView = query("onboarding-view");
-export const onboardingForm = query("onboarding-form");
-export const onboardName = query("onboard-name");
-export const onboardUsername = query("onboard-username");
-export const onboardDob = query("onboard-dob");
-export const onboardAvatarInput = query("onboard-avatar-input");
-export const onboardAvatarPreview = query("onboard-avatar-preview");
-export const btnOnboardAvatar = query("btn-onboard-avatar");
-export const btnOnboardSkip = query("btn-onboard-skip");
-export const onboardError = query("onboard-error");
-
-export const mfaOverlay = query("mfa-overlay");
-export const mfaBoxes = query("mfa-boxes");
-export const mfaError = query("mfa-error");
-export const btnMfaSubmit = query("btn-mfa-submit");
-
-export const mfaDialog = query("mfa-dialog");
-export const mfaStepEnroll = query("mfa-step-enroll");
-export const mfaStepVerify = query("mfa-step-verify");
-export const mfaQr = query("mfa-qr");
-export const mfaSecret = query("mfa-secret");
-export const mfaVerifyBoxes = query("mfa-verify-boxes");
-export const mfaSetupError = query("mfa-setup-error");
-export const mfaDialogClose = query("mfa-dialog-close");
-export const mfaCancel = query("mfa-cancel");
-export const mfaScanned = query("mfa-scanned");
-export const mfaVerifyBack = query("mfa-verify-back");
-export const btnMfaVerify = query("btn-mfa-verify");
-
-export const mfaStatusText = query("mfa-status-text");
-export const btnMfaSetup = query("btn-mfa-setup");
-export const btnMfaDisable = query("btn-mfa-disable");
 
 export const authFormSignin = query("auth-form-signin");
 export const authFormSignup = query("auth-form-signup");
@@ -83,7 +49,6 @@ export const btnForgot = query("btn-forgot");
 export const btnBackSignin = query("btn-back-signin");
 export const btnGoogleSignin = query("btn-google-signin");
 
-export const authFormOtp = query("auth-form-otp");
 export const otpEmail = query("otp-email");
 export const otpTitle = query("otp-title");
 export const otpBoxes = query("otp-boxes");
@@ -108,25 +73,13 @@ export const chatActive = query("chat-active");
 export const chatTitle = query("chat-title");
 export const chatSubtitle = query("chat-subtitle");
 export const chatAvatar = query("chat-avatar");
-export const chatPresenceDot = query("chat-presence-dot");
 export const composerInput = query("composer-input");
 export const composerNotice = query("composer-notice");
-export const typingIndicator = query("typing-indicator");
 export const btnAttach = query("btn-attach");
 export const attachInput = query("attach-input");
 export const attachPreview = query("attach-preview");
 export const attachPreviewList = query("attach-preview-list");
 export const attachProgress = query("attach-progress");
-export const btnCamera = query("btn-camera");
-export const btnMic = query("btn-mic");
-export const cameraOverlay = query("camera-overlay");
-export const cameraPreview = query("camera-preview");
-export const cameraHint = query("camera-hint");
-export const btnCameraClose = query("btn-camera-close");
-export const btnCameraCapture = query("btn-camera-capture");
-export const voiceBar = query("voice-bar");
-export const voiceTimer = query("voice-timer");
-export const btnVoiceCancel = query("btn-voice-cancel");
 export const replyBar = query("reply-bar");
 export const replySender = query("reply-sender");
 export const replyText = query("reply-text");
@@ -137,21 +90,10 @@ export const btnSend = query("btn-send");
 export const btnInfo = query("btn-info");
 export const btnBack = query("btn-back");
 export const btnCloseChat = query("btn-close-chat");
-export const bottomNav = query("bottom-nav");
-export const tabChats = query("tab-chats");
-export const tabContacts = query("tab-contacts");
-export const tabSettings = query("tab-settings");
 
-export const homeView = query("home-view");
-export const homeGreeting = query("home-greeting");
-export const homeTitle = query("home-title");
-export const homeSubtitle = query("home-subtitle");
-export const btnHomeNewRoom = query("btn-home-new-room");
-export const btnMenu = query("btn-menu");
 export const drawerBackdrop = query("drawer-backdrop");
 
 export const info = query("info");
-export const infoTitle = query("info-title");
 export const btnCloseInfo = query("btn-close-info");
 export const infoHeadSub = query("info-head-sub");
 export const memberList = query("member-list");
@@ -165,66 +107,10 @@ export const infoRoomAvatar = query("info-room-avatar");
 export const infoRoomName = query("info-room-name");
 export const infoRoomDesc = query("info-room-desc");
 export const infoRoomTag = query("info-room-tag");
-export const btnEditRoom = query("btn-edit-room");
 export const infoMediaGrid = query("info-media-grid");
 export const infoMediaEmpty = query("info-media-empty");
-export const btnMute = query("btn-mute");
-export const muteValue = query("mute-value");
-export const btnWallpaper = query("btn-wallpaper");
-export const wallpaperValue = query("wallpaper-value");
-export const btnDisappear = query("btn-disappear");
-export const disappearValue = query("disappear-value");
 export const btnClearMessages = query("btn-clear-messages");
-export const btnBlock = query("btn-block");
-export const btnUnblock = query("btn-unblock");
 
-export const roomSettingsDialog = query("room-settings-dialog");
-export const roomSettingsForm = query("room-settings-form");
-export const roomSettingsAvatar = query("room-settings-avatar");
-export const roomSettingsName = query("room-settings-name");
-export const roomSettingsDesc = query("room-settings-desc");
-export const roomSettingsError = query("room-settings-error");
-export const roomSettingsDialogClose = query("room-settings-dialog-close");
-export const roomSettingsCancel = query("room-settings-cancel");
-
-export const clearDialog = query("clear-dialog");
-export const clearDialogClose = query("clear-dialog-close");
-export const btnClearForMe = query("btn-clear-for-me");
-export const btnClearForEveryone = query("btn-clear-for-everyone");
-
-export const wallpaperDialog = query("wallpaper-dialog");
-export const wallpaperDialogClose = query("wallpaper-dialog-close");
-export const wallpaperGrid = query("wallpaper-grid");
-
-export const disappearDialog = query("disappear-dialog");
-export const disappearDialogClose = query("disappear-dialog-close");
-export const disappearHint = query("disappear-hint");
-
-export const pinList = query("pin-list");
-export const pinCount = query("pin-count");
-export const pinEmpty = query("pin-empty");
-
-export const taskCard = query("task-card");
-export const taskList = query("task-list");
-export const taskCount = query("task-count");
-export const taskEmpty = query("task-empty");
-export const taskFilters = query("task-filters");
-export const btnNewTask = query("btn-new-task");
-
-export const taskDialog = query("task-dialog");
-export const taskDialogTitle = query("task-dialog-title");
-export const taskDialogClose = query("task-dialog-close");
-export const taskCancel = query("task-cancel");
-export const taskDelete = query("task-delete");
-export const taskSave = query("task-save");
-export const taskForm = query("task-form");
-export const taskTitle = query("task-title");
-export const taskDesc = query("task-desc");
-export const taskAssignee = query("task-assignee");
-export const taskDue = query("task-due");
-export const taskStatus = query("task-status");
-export const taskSource = query("task-source");
-export const taskError = query("task-error");
 
 export const roomDialog = query("room-dialog");
 export const roomForm = query("room-form");
@@ -238,7 +124,6 @@ export const profileForm = query("profile-form");
 export const profileName = query("profile-name");
 export const profileUsername = query("profile-username");
 export const profileStatus = query("profile-status");
-export const profileDob = query("profile-dob");
 export const profileAvatar = query("profile-avatar");
 export const profileError = query("profile-error");
 export const profileDialogClose = query("profile-dialog-close");

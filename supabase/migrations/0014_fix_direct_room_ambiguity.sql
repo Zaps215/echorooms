@@ -46,14 +46,6 @@ begin
     raise exception 'User not found';
   end if;
 
-  if exists (
-    select 1 from public.blocks b
-    where (b.blocker_id = me and b.blocked_id = other_user_id)
-       or (b.blocker_id = other_user_id and b.blocked_id = me)
-  ) then
-    raise exception 'Messaging blocked';
-  end if;
-
   select r.id into found
   from public.rooms r
   join public.room_members a on a.room_id = r.id and a.user_id = me

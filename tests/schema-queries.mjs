@@ -1,11 +1,11 @@
 // Checks that every column the client orders/filters by actually exists in the
 // database schema.
 //
-// This exists because of a real bug: the task assignee picker ordered
-// `room_members` by `created_at`, but that table's only timestamp is
-// `joined_at`. Postgres rejected the query, the row came back null, and the
-// dropdown silently rendered "Nobody" as the sole option — no error surfaced
-// anywhere, and the unit tests had no database to notice.
+// This exists because of a real bug: a picker ordered `room_members` by
+// `created_at`, but that table's only timestamp is `joined_at`. Postgres
+// rejected the query, the row came back null, and the dropdown silently
+// rendered "Nobody" as the sole option — no error surfaced anywhere, and the
+// unit tests had no database to notice.
 //
 // The schema is read from supabase/setup.sql rather than a live connection so
 // the check runs offline and in CI.
@@ -91,8 +91,25 @@ for (const { f, s } of sources) {
   }
 }
 
+// The full public schema, so a parser regression fails loudly instead of
+// silently "passing" over an empty inventory.
+const EXPECTED_TABLES = [
+  "profiles",
+  "rooms",
+  "room_members",
+  "messages",
+  "room_keys",
+  "attachments",
+];
+
+assert.deepEqual(
+  [...columns.keys()].sort(),
+  [...EXPECTED_TABLES].sort(),
+  `parsed ${columns.size} table(s) from setup.sql, expected ${EXPECTED_TABLES.length} — the regex probably stopped matching`
+);
+
 assert.ok(
-  columns.size >= 10,
+  columns.size >= EXPECTED_TABLES.length,
   `only parsed ${columns.size} tables from setup.sql — the regex probably stopped matching`
 );
 
