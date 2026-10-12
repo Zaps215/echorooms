@@ -100,6 +100,12 @@ const EXPECTED_TABLES = [
   "messages",
   "room_keys",
   "attachments",
+  "social_posts",
+  "social_post_likes",
+  "social_post_comments",
+  "broadcast_channels",
+  "broadcast_channel_posts",
+  "broadcast_channel_members",
 ];
 
 assert.deepEqual(

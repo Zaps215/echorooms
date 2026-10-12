@@ -37,7 +37,9 @@ Start the local frontend:
 npm run dev
 ```
 
-Open the URL printed by Vite. The signed-in app has separate Feed and Chats sections. Feed is the social-style home and links to the user's existing private rooms; Chats contains room creation and listing, encrypted direct and group messaging with @username handles and mentions, member invitations, and encrypted attachments. Published social posts and stories are planned, not yet backed by storage.
+Open the URL printed by Vite. The signed-in app has separate Feed and Chats sections. Feed supports text and photo posts, voice notes, likes, comments, and a profile post grid. Chats includes room creation, encrypted direct and group messaging with @username handles and mentions, member invitations, encrypted attachments, and All/Groups/Channels filters. Channels includes four bot-curated read-only streams with seeded starter updates; members can join or leave, but cannot post. Profile includes account controls and settings for appearance and browser notifications.
+
+Feed posts and their media are separate from private room data. Posts and comments are visible to all signed-in EchoRooms members in this MVP; follows, private-account audiences, reporting, and moderation tools are not implemented. Channel updates are sample starter content, not a live external news or automated bot service. Private room messages and attachments remain end-to-end encrypted. Apply migrations `0016_social_feed.sql` and `0017_read_only_channels.sql` (or use the consolidated `supabase/setup.sql`) before using the social feed and channels with Supabase. Camera and microphone permissions are requested only after the user chooses those actions; choosing a gallery photo opens the device's file picker rather than requesting a broad gallery permission.
 
 ## Current Checkpoint
 
@@ -54,11 +56,18 @@ Open the URL printed by Vite. The signed-in app has separate Feed and Chats sect
 - [x] Private avatar uploads with authenticated storage policies
 - [x] Session changes return unauthenticated users to the login view
 - [x] Instagram-inspired Feed and Chats navigation with a responsive app rail/bottom bar
-- [x] Feed home with shortcuts to the user's actual private rooms; no sample or public content is shown
+- [x] Persistent text/photo community feed with camera capture, likes, comments, and post deletion
+- [x] Optional voice-note posts with explicit microphone consent and browser permission prompts
+- [x] Profile post grid and post count; Settings page for appearance and browser notifications
+- [x] Feed media stored in a private Supabase bucket with signed viewing URLs
+- [x] Feed, likes, and comments protected by authenticated-user policies and separate from encrypted room messages
+- [x] Feed home with shortcuts to the user's actual private rooms
+- [x] Chat sidebar filters for All, Groups, and Channels; chat colors match the blue EchoRooms logo
+- [x] Four joinable, read-only bot-curated channels with seeded update streams
 - [x] Secure room creation and room listing
 - [x] Centered, single-card auth layout with the logo above the form
-- [x] Light theme (violet primary, warm highlights) applied across the app shell
-- [x] Two-pane layout: room list (All/Groups tabs, room filter, round initial avatars) beside the conversation pane
+- [x] Light theme (violet social Feed, blue Chats, warm highlights)
+- [x] Two-pane layout: room list (All/Groups/Channels filters, room filter, round initial avatars) beside the conversation pane
 - [x] Room info slide-over with members, invites, attachments, encryption details, and clear/delete/dissolve/restore actions
 - [x] Mobile single-pane layout: the room list and conversation swap via a back button, with the info panel as an overlay drawer
 - [x] Draft Terms &amp; Conditions and Privacy Policy pages linked from the signup form
@@ -71,7 +80,7 @@ Open the URL printed by Vite. The signed-in app has separate Feed and Chats sect
 - [x] Room creation with the owner automatically provisioning the room's encryption key
 - [x] Replies with an inline quoted preview of the original message
 - [x] E2EE attachments: encrypted image, video, audio, and document uploads
-- [ ] Persistent social posts, stories, likes, comments, and follow/privacy controls (planned; see `ECHOROOMS_PROGRAM.md`)
+- [ ] Follow relationships, private-profile audiences, stories, reporting, and moderation controls (planned; see `ECHOROOMS_PROGRAM.md`)
 - [ ] Instagram-style discovery, server search, recommendations, and AI features (planned for explicitly public/consented social content; existing chats remain end-to-end encrypted)
 
 ## Commands
@@ -79,7 +88,7 @@ Open the URL printed by Vite. The signed-in app has separate Feed and Chats sect
 - `npm run dev` starts the Vite development server.
 - `npm run build` creates a production build in `dist/`.
 - `npm run preview` serves the production build locally.
-- `npm test` runs the unit and UI smoke tests.
+- `npm test` runs the unit, UI, and schema regression tests.
 
 ## Project Structure
 
@@ -88,11 +97,11 @@ Open the URL printed by Vite. The signed-in app has separate Feed and Chats sect
 - `css/` contains the visual foundation and responsive social-style app shell.
 - `js/main.js` is the entry point: it wires the auth-session lifecycle and bootstraps each feature module.
 - `js/core/` holds shared concerns — the DOM registry (`dom.js`), app state (`state.js`), Supabase access (`supabase.js`), reusable helpers (`utils.js`, `navigation.js`), Feed/Chats navigation, dialogs (`confirm.js`), the conversation header view model (`chat-header.js`), and the E2EE primitives (`crypto.js`) with the identity/keyring manager (`keyring.js`).
-- `js/features/` holds feature logic — auth (`auth.js`), email OTP verification (`otp.js`), rooms and member management (`rooms.js`), profile/account (`profile.js`), chat (`chat.js`), and encrypted attachment handling (`media.js`).
+- `js/features/` holds feature logic — auth (`auth.js`), email OTP verification (`otp.js`), rooms and member management (`rooms.js`), profile/account/settings (`profile.js`), social feed (`feed.js`), chat (`chat.js`), and encrypted attachment handling (`media.js`).
 - `js/supabase-client.js` initializes the Supabase client.
-- `supabase/setup.sql` is the consolidated schema; `supabase/migrations/` contains the incremental migrations that produced it, including `0015_drop_removed_features.sql` which strips features from a database deployed against earlier revisions. `supabase/verify.sql` holds ad-hoc verification queries.
+- `supabase/setup.sql` is the consolidated schema; `supabase/migrations/` contains the incremental migrations that produced it, including `0015_drop_removed_features.sql`, `0016_social_feed.sql`, and `0017_read_only_channels.sql`. `supabase/verify.sql` holds ad-hoc verification queries.
 - `supabase/functions/` is reserved for secure Edge Functions.
-- `tests/` contains the Node test suite. `crypto.mjs` covers the encryption primitives; `chat-header.mjs` covers the header view model; `auth-errors.mjs` covers credential/network messaging and async button state; `setup-sql.mjs` checks `setup.sql` is re-runnable; `sql-ambiguity.mjs` checks queries avoid ambiguous column references; `schema-queries.mjs` checks every table and column the client sorts or filters by actually exists.
+- `tests/` contains the Node test suite. `crypto.mjs` covers the encryption primitives; `chat-header.mjs` covers the header view model; `auth-errors.mjs` covers credential/network messaging and async button state; `setup-sql.mjs` checks `setup.sql` is re-runnable; `sql-ambiguity.mjs` checks queries avoid ambiguous column references; `schema-queries.mjs` checks every table and column the client sorts or filters by actually exists; `social-feed.mjs` and `channels.mjs` check social feature schema and access behavior.
 - `echorooms-services/` contains the original numbered service build plans. Several of those slices (reactions, pins, presence, 2FA, onboarding, chat settings, tasks, search) are not part of the current app.
 - `ECHOROOMS_PROGRAM.md` is the complete product specification.
 

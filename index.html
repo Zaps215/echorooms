@@ -269,6 +269,7 @@
       </div>
       <button class="app-nav-profile" type="button" id="btn-nav-profile" aria-label="Open your profile" title="Profile">
         <span class="me-avatar" id="nav-avatar">?</span>
+        <span class="app-nav-profile-label">Profile</span>
       </button>
     </nav>
 
@@ -276,41 +277,55 @@
       <header class="feed-head">
         <div>
           <p class="feed-eyebrow">ECHOROOMS</p>
-          <h1>Your feed</h1>
+          <h1>EchoRooms</h1>
         </div>
-        <button class="feed-new-message" type="button" data-app-view="chats" aria-label="Open chats" title="Open chats">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 8v6m-3-3h6"/></svg>
-        </button>
+        <div class="feed-head-actions">
+          <button class="feed-new-message" type="button" id="btn-feed-create" aria-label="Create post" title="Create post">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14m-7-7h14"/></svg>
+          </button>
+          <button class="feed-new-message" type="button" data-app-view="chats" aria-label="Open chats" title="Open chats">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </button>
+        </div>
       </header>
       <div class="feed-scroll">
-        <section class="feed-welcome" aria-labelledby="feed-welcome-title">
-          <div class="feed-welcome-copy">
-            <span class="feed-kicker">A little more connected</span>
-            <h2 id="feed-welcome-title">Good conversations<br />start somewhere.</h2>
-            <p>Your people and shared updates will find a home here. For now, your private conversations are ready whenever you are.</p>
-            <button class="feed-primary" type="button" data-app-view="chats">Go to your chats <span aria-hidden="true">→</span></button>
+        <div class="feed-layout">
+          <div class="feed-main-column">
+            <section class="feed-compose-card" aria-label="Create a post">
+              <span class="me-avatar feed-compose-avatar" id="feed-compose-avatar">?</span>
+              <button class="feed-compose-prompt" type="button" id="btn-feed-create-prompt">Share a photo or a thought…</button>
+              <button class="feed-compose-icon" type="button" id="btn-feed-create-inline" aria-label="Create post" title="Create post">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              </button>
+            </section>
+            <section class="feed-timeline" aria-label="Posts">
+              <div class="feed-timeline-head">
+                <div><p class="feed-eyebrow">FROM THE COMMUNITY</p><h2>Your feed</h2></div>
+                <button class="feed-refresh" type="button" id="btn-feed-refresh">Refresh</button>
+              </div>
+              <div class="feed-post-list" id="feed-post-list" aria-live="polite"></div>
+            </section>
           </div>
-          <div class="feed-art" aria-hidden="true">
-            <span class="feed-art-orbit feed-art-orbit-one"></span>
-            <span class="feed-art-orbit feed-art-orbit-two"></span>
-            <span class="feed-art-bubble feed-art-bubble-one">hey!</span>
-            <span class="feed-art-bubble feed-art-bubble-two">✦</span>
-            <span class="feed-art-bubble feed-art-bubble-three">☺</span>
-            <span class="feed-art-center">
-              <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg>
-            </span>
-          </div>
-        </section>
-        <section class="feed-spaces" aria-labelledby="feed-spaces-title">
-          <div class="feed-section-heading">
-            <div>
-              <h2 id="feed-spaces-title">Your spaces</h2>
-              <p>Pick up where you left off.</p>
-            </div>
-            <button type="button" class="feed-text-button" data-app-view="chats">All chats <span aria-hidden="true">→</span></button>
-          </div>
-          <div class="feed-room-list" id="feed-room-list" aria-live="polite"></div>
-        </section>
+          <aside class="feed-aside">
+            <section class="feed-aside-card feed-recent-chats">
+              <div class="feed-timeline-head"><div><p class="feed-eyebrow">YOUR CONVERSATIONS</p><h2>Recent chats</h2></div></div>
+              <div class="feed-room-list" id="feed-room-list"></div>
+            </section>
+            <section class="feed-aside-card feed-chat-card">
+              <span class="feed-aside-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3c2.3 2.5 3.3 5.5 3.3 9M12 3c-2.3 2.5-3.3 5.5-3.3 9M3.5 9h12M4.4 15h13.1"/><path d="M16 5h5v5"/></svg>
+              </span>
+              <h2>Good conversations continue in Chat</h2>
+              <p>Your private rooms stay encrypted and separate from community posts.</p>
+              <button type="button" data-app-view="chats">Open chats <span aria-hidden="true">→</span></button>
+            </section>
+            <section class="feed-aside-card feed-community-note">
+              <span class="feed-community-dot"></span>
+              <div><strong>EchoRooms community</strong><p>Posts are visible to signed-in members.</p></div>
+            </section>
+            <p class="feed-footer-note">Share thoughtfully. Only post content you have permission to share.</p>
+          </aside>
+        </div>
       </div>
     </main>
 
@@ -341,6 +356,7 @@
         <div class="side-tabs">
           <button class="tab active" data-tab="all">All</button>
           <button class="tab" data-tab="groups">Groups</button>
+          <button class="tab" data-tab="channels">Channels</button>
         </div>
       </header>
 
@@ -361,6 +377,17 @@
 
     <!-- Chat -->
     <main class="chat">
+      <section class="channel-welcome is-hidden" id="channel-welcome">
+        <div class="channel-welcome-copy">
+          <span class="channel-welcome-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3c2.3 2.5 3.3 5.5 3.3 9M12 3c-2.3 2.5-3.3 5.5-3.3 9M3.5 9h12M4.4 15h13.1"/><path d="M16 5h5v5"/></svg>
+          </span>
+          <p class="channel-eyebrow">ECHOROOMS CHANNELS</p>
+          <h2>See what’s happening</h2>
+          <p>Join a bot-curated channel for quick updates, fresh ideas, and conversation starters. You can read along; posting is turned off for now.</p>
+        </div>
+        <div class="channel-featured-grid" id="channel-featured-grid"></div>
+      </section>
       <div class="chat-empty" id="chat-empty">
         <div class="empty-orbit">
           <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2.5"/></svg>
@@ -419,8 +446,28 @@
           </div>
         </footer>
       </div>
+    </main>
 
-      <section class="profile-view is-hidden" id="profile-view">
+    <main class="channel-reader is-hidden" id="channel-reader">
+      <header class="channel-reader-head">
+        <button class="icon-btn channel-back" id="channel-back" type="button" aria-label="Back to channels">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <span class="channel-reader-avatar" id="channel-reader-avatar" aria-hidden="true">◉</span>
+        <div class="channel-reader-heading">
+          <h2 id="channel-reader-title">Channel</h2>
+          <p id="channel-reader-description"></p>
+        </div>
+        <button class="channel-join-button" id="channel-join-button" type="button">Join channel</button>
+      </header>
+      <div class="channel-reader-meta">
+        <span id="channel-member-count">0 members</span>
+        <span>Bot updates · Read only</span>
+      </div>
+      <section class="channel-post-list" id="channel-post-list" aria-live="polite" aria-label="Channel updates"></section>
+    </main>
+
+    <section class="profile-view is-hidden" id="profile-view">
         <header class="profile-head">
           <button class="icon-btn" id="btn-profile-back" title="Back">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
@@ -428,9 +475,12 @@
           <div class="profile-head-title">
             <h2 id="profile-head-title">Profile</h2>
           </div>
+          <button class="icon-btn profile-settings-button" id="btn-profile-settings" title="Settings" aria-label="Settings">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1a1.7 1.7 0 1 1-2.4 2.4l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a1.7 1.7 0 1 1-3.4 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1a1.7 1.7 0 1 1-2.4-2.4l.1-.1a1.7 1.7 0 0 0-1.2-2.9H4a1.7 1.7 0 1 1 0-3.4h.2a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a1.7 1.7 0 1 1 2.4-2.4l.1.1a1.7 1.7 0 0 0 2.9-1.2V2a1.7 1.7 0 1 1 3.4 0v.2a1.7 1.7 0 0 0 2.9 1.2l.1-.1a1.7 1.7 0 1 1 2.4 2.4l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a1.7 1.7 0 1 1 0 3.4h-.2a1.7 1.7 0 0 0-1.2 2.9z"/></svg>
+          </button>
         </header>
 
-        <div class="profile-scroll">
+        <div class="profile-scroll" id="profile-content">
           <div class="tp-hero">
             <div class="tp-avatar-wrap">
               <span class="me-avatar tp-avatar" id="profile-avatar-lg">?</span>
@@ -441,6 +491,11 @@
             <h1 class="tp-name" id="profile-display-name">You</h1>
             <p class="tp-handle" id="profile-handle"></p>
             <p class="tp-status" id="profile-status-text"></p>
+          </div>
+
+          <div class="profile-stats">
+            <div><strong id="profile-post-count">0</strong><span>posts</span></div>
+            <div><strong id="profile-comment-count">0</strong><span>comments</span></div>
           </div>
 
           <p class="error-box" id="profile-page-error" role="alert" hidden></p>
@@ -467,10 +522,35 @@
               <span>Delete</span>
             </button>
           </div>
-        </div>
-      </section>
-    </main>
 
+          <section class="profile-posts">
+            <div class="profile-posts-heading"><h3>Your posts</h3><span>Visible to signed-in EchoRooms members</span></div>
+            <div class="profile-post-grid" id="profile-post-grid"></div>
+          </section>
+        </div>
+
+        <section class="profile-settings is-hidden" id="profile-settings">
+          <div class="settings-page-intro"><span class="settings-page-icon">⚙</span><div><h3>Settings</h3><p>Make EchoRooms feel right for you.</p></div></div>
+          <section class="settings-group">
+            <h4>Appearance</h4>
+            <label class="settings-preference"><span><strong>Dark appearance</strong><small>Use a darker color palette on this device.</small></span><input id="setting-dark-mode" type="checkbox" role="switch" /></label>
+          </section>
+          <section class="settings-group">
+            <h4>Notifications</h4>
+            <div class="settings-preference"><span><strong>Browser notifications</strong><small id="notification-setting-status">Only requested when you choose to enable them.</small></span><button class="settings-enable-button" id="btn-enable-notifications" type="button">Enable</button></div>
+          </section>
+          <section class="settings-group">
+            <h4>Privacy</h4>
+            <div class="settings-preference settings-static"><span><strong>Community posts</strong><small>Visible to signed-in EchoRooms members. Private room messages are not included in the feed.</small></span></div>
+            <div class="settings-preference settings-static"><span><strong>Camera, photos and microphone</strong><small>Access is requested only when you choose Camera or Record voice. Photo selection uses the device's file picker.</small></span></div>
+          </section>
+          <section class="settings-group settings-account">
+            <h4>Account</h4>
+            <button class="settings-row-button" id="btn-settings-edit-profile" type="button">Edit profile <span aria-hidden="true">›</span></button>
+            <button class="settings-row-button settings-signout" id="btn-settings-signout" type="button">Sign out <span aria-hidden="true">›</span></button>
+          </section>
+        </section>
+      </section>
     <!-- Info Panel (WhatsApp-style chat settings) -->
     <aside class="info is-hidden" id="info">
       <header class="info-head">
@@ -737,6 +817,49 @@
         <ul class="restore-list" id="restore-list"></ul>
 
         <p class="dm-none" id="restore-empty">Nothing to restore.</p>
+      </div>
+    </dialog>
+
+    <dialog class="modal feed-post-dialog" id="feed-post-dialog">
+      <div class="modal-content">
+        <header class="modal-head">
+          <div><p class="feed-eyebrow">SHARE WITH THE COMMUNITY</p><h3>Create a post</h3></div>
+          <button class="icon-btn" id="feed-post-close" type="button" aria-label="Close post composer">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="12" x2="18" y2="18"/></svg>
+          </button>
+        </header>
+        <form id="feed-post-form" class="feed-post-form">
+          <div class="feed-post-author"><span class="me-avatar" id="feed-post-avatar">?</span><div><strong id="feed-post-author-name">You</strong><span>Visible to signed-in EchoRooms members</span></div></div>
+          <label class="sr-only" for="feed-post-text">Write a caption</label>
+          <textarea id="feed-post-text" maxlength="2200" rows="5" placeholder="What would you like to share?"></textarea>
+          <div class="feed-composer-tools">
+            <button class="feed-tool-button" id="feed-choose-photo" type="button"><span aria-hidden="true">▧</span> Photo</button>
+            <button class="feed-tool-button" id="feed-open-camera" type="button"><span aria-hidden="true">◎</span> Camera</button>
+            <button class="feed-tool-button" id="feed-record-voice" type="button"><span aria-hidden="true">◉</span> Record voice</button>
+            <span class="feed-char-count" id="feed-char-count">0 / 2,200</span>
+          </div>
+          <p class="feed-permission-note">Your gallery opens in the device picker. Camera and microphone access are requested only after you choose those actions.</p>
+          <input id="feed-photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+          <div id="feed-media-preview" class="feed-media-preview is-hidden">
+            <img id="feed-preview-image" alt="Selected post image preview" class="is-hidden" />
+            <audio id="feed-preview-audio" controls class="is-hidden"></audio>
+            <button type="button" id="feed-remove-media" class="feed-remove-media" aria-label="Remove attachment">Remove</button>
+          </div>
+          <div class="error-box" id="feed-post-error" role="alert" hidden></div>
+          <button class="btn-primary feed-publish-button" id="feed-publish" type="submit">
+            <span class="btn-label">Share post</span><span class="spinner" aria-hidden="true" hidden></span>
+          </button>
+        </form>
+      </div>
+    </dialog>
+
+    <dialog class="modal feed-camera-dialog" id="feed-camera-dialog">
+      <div class="modal-content">
+        <header class="modal-head"><h3>Take a photo</h3><button class="icon-btn" id="feed-camera-close" type="button" aria-label="Close camera">×</button></header>
+        <p class="dm-hint">Allow camera access in your browser to take a photo. EchoRooms does not open the camera until you choose Camera.</p>
+        <video id="feed-camera-video" autoplay playsinline aria-label="Camera preview"></video>
+        <div class="modal-actions"><button class="btn-ghost" id="feed-camera-cancel" type="button">Cancel</button><button class="btn-primary" id="feed-camera-capture" type="button">Take photo</button></div>
+        <div class="error-box" id="feed-camera-error" role="alert" hidden></div>
       </div>
     </dialog>
   </div>

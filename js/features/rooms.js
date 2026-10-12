@@ -8,13 +8,14 @@ import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
 import { showError, hideError, escapeHtml, avatarColor } from "../core/utils.js";
-import { showRoomChat, closeInfo, showChatList } from "../core/navigation.js";
+import { showRoomChat, closeInfo, showChatList, showChannelList } from "../core/navigation.js";
 import { showConfirm } from "../core/confirm.js";
 import { openRoom, closeRoom, getRoomMembers, setComposerNotice, clearLocalMessages } from "./chat.js";
 import { chatHeaderView } from "../core/chat-header.js";
 import { decryptAttachment, isImageMime } from "./media.js";
 import { getIdentity, createRoomKey, getRoomKey, shareRoomKey, canManageRoom } from "../core/keyring.js";
 import { needsUsername, openUsernameDialog } from "./profile.js";
+import { renderChannelList } from "./channels.js";
 
 const ROOM_PALETTE = [
   "#2563eb",
@@ -72,6 +73,10 @@ function renderMembersList() {
 
 function renderRooms(filterText = "") {
   renderFeedRooms();
+  if (state.activeTab === "channels") {
+    renderChannelList(filterText);
+    return;
+  }
   const filtered = state.rooms.filter((r) =>
     r.name.toLowerCase().includes(filterText.toLowerCase())
   );
@@ -308,6 +313,10 @@ export function selectRoom(roomId) {
   const room = state.rooms.find((r) => r.id === roomId);
   if (!room) return;
 
+  if (state.activeTab === "channels" || (state.activeTab === "groups" && room.room_type !== "group")) {
+    state.activeTab = "all";
+  }
+  dom.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === state.activeTab));
   dom.chatTitle.textContent = room.name;
   dom.chatSubtitle.textContent =
     room.room_type === "direct" ? "Direct conversation" : "Group room";
@@ -402,9 +411,12 @@ function initSidebar() {
 
   dom.tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
+      const previousTab = state.activeTab;
       dom.tabs.forEach((t) => t.classList.remove("active"));
       tab.classList.add("active");
       state.activeTab = tab.dataset.tab;
+      if (state.activeTab === "channels") showChannelList();
+      else if (previousTab === "channels") showChatList();
       renderRooms(dom.roomSearch ? dom.roomSearch.value : "");
     });
   });

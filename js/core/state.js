@@ -27,6 +27,7 @@ export const otpState = {
 export function resetAppState() {
   state.rooms = [];
   state.currentRoomId = null;
+  state.activeTab = "all";
   state.currentUser = null;
   state.messages = [];
   state.messagesLoading = false;

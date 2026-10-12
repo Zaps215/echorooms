@@ -29,8 +29,11 @@ export function showAuthShell() {
   dom.authWrapper.classList.remove("is-hidden");
   if (dom.info) dom.info.classList.add("is-hidden");
   closeInfo();
-  dom.appWrapper.classList.remove("chat-open", "chat-section-active");
+  dom.appWrapper.classList.remove("chat-open", "chat-section-active", "channels-open", "channels-tab-active");
   dom.appWrapper.classList.add("feed-section-active");
+  dom.channelReader?.classList.add("is-hidden");
+  dom.channelWelcome?.classList.add("is-hidden");
+  dom.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === "all"));
   syncAppNavigation("feed");
   switchAuthForm("signin");
 }
@@ -48,14 +51,36 @@ function syncAppNavigation(view) {
 
 export function showFeed() {
   dom.appWrapper.classList.add("feed-section-active");
-  dom.appWrapper.classList.remove("chat-section-active", "chat-open");
+  dom.appWrapper.classList.remove("chat-section-active", "chat-open", "channels-open", "channels-tab-active");
+  dom.channelReader?.classList.add("is-hidden");
   closeInfo();
   syncAppNavigation("feed");
 }
 
 export function showChats() {
   dom.appWrapper.classList.add("chat-section-active");
-  dom.appWrapper.classList.remove("feed-section-active", "chat-open");
+  dom.appWrapper.classList.remove("feed-section-active", "chat-open", "channels-open", "channels-tab-active");
+  dom.channelReader?.classList.add("is-hidden");
+  dom.channelWelcome?.classList.add("is-hidden");
+  dom.channelReader?.classList.add("is-hidden");
+  closeInfo();
+  syncAppNavigation("chats");
+}
+
+export function showChannelList() {
+  showChats();
+  dom.appWrapper.classList.add("channels-tab-active");
+  if (dom.chatEmpty) dom.chatEmpty.classList.remove("is-hidden");
+  if (dom.chatActive) dom.chatActive.classList.add("is-hidden");
+  dom.channelReader?.classList.add("is-hidden");
+  dom.channelWelcome?.classList.remove("is-hidden");
+}
+
+export function showChannelReader() {
+  dom.appWrapper.classList.add("chat-section-active", "channels-open");
+  dom.appWrapper.classList.remove("feed-section-active", "chat-open", "channels-tab-active");
+  dom.channelWelcome?.classList.add("is-hidden");
+  dom.channelReader?.classList.remove("is-hidden");
   closeInfo();
   syncAppNavigation("chats");
 }
@@ -63,6 +88,7 @@ export function showChats() {
 /** Shows the chat list alone. On narrow viewports this leaves the conversation. */
 export function showChatList() {
   showChats();
+  dom.channelWelcome?.classList.add("is-hidden");
   if (dom.chatEmpty) dom.chatEmpty.classList.remove("is-hidden");
   if (dom.chatActive) dom.chatActive.classList.add("is-hidden");
 }
@@ -70,7 +96,9 @@ export function showChatList() {
 /** Shows the open conversation. */
 export function showRoomChat() {
   dom.appWrapper.classList.add("chat-section-active", "chat-open");
-  dom.appWrapper.classList.remove("feed-section-active");
+  dom.appWrapper.classList.remove("feed-section-active", "channels-open", "channels-tab-active");
+  dom.channelWelcome?.classList.add("is-hidden");
+  dom.channelReader?.classList.add("is-hidden");
   syncAppNavigation("chats");
   if (dom.chatEmpty) dom.chatEmpty.classList.add("is-hidden");
   if (dom.chatActive) dom.chatActive.classList.remove("is-hidden");
@@ -101,10 +129,15 @@ export function showProfile() {
   if (!dom.profileView) return;
   closeInfo();
   dom.profileView.classList.remove("is-hidden");
+  dom.appWrapper.classList.add("profile-open");
+  dom.profileContent?.classList.remove("is-hidden");
+  dom.profileSettings?.classList.add("is-hidden");
+  if (dom.profileHeadTitle) dom.profileHeadTitle.textContent = "Profile";
 }
 
 export function hideProfile() {
   if (dom.profileView) dom.profileView.classList.add("is-hidden");
+  dom.appWrapper.classList.remove("profile-open");
 }
 
 function syncDrawerBackdrop() {
@@ -118,7 +151,13 @@ export function initNavigation() {
   dom.appViewButtons.forEach((button) => {
     button.addEventListener("click", () => {
       if (button.dataset.appView === "feed") showFeed();
-      else if (button.dataset.appView === "chats") showChats();
+      else if (button.dataset.appView === "chats") {
+        const channelsSelected = dom.tabs.some((tab) =>
+          tab.dataset.tab === "channels" && tab.classList.contains("active")
+        );
+        if (channelsSelected) showChannelList();
+        else showChats();
+      }
     });
   });
   dom.btnNavProfile?.addEventListener("click", () => showProfile());

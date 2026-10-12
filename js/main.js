@@ -19,6 +19,8 @@ import { initOtp } from "./features/otp.js";
 import { initRooms, loadRooms } from "./features/rooms.js";
 import { initProfile, loadProfile } from "./features/profile.js";
 import { initChat, closeRoom } from "./features/chat.js";
+import { initFeed, loadFeedPosts, startFeedSession } from "./features/feed.js";
+import { initChannels } from "./features/channels.js";
 
 // --- Feature wiring (listener setup only) ---
 initNavigation();
@@ -28,17 +30,22 @@ initOtp();
 initRooms();
 initProfile();
 initChat();
+initFeed();
+initChannels();
 
 // --- Session lifecycle ---
 async function enterApp(user) {
   state.currentUser = user;
+  startFeedSession();
   showAppShell();
   await ensureIdentity();
   await loadRooms();
   await loadProfile();
+  await loadFeedPosts();
 }
 
 function exitToAuth() {
+  window.dispatchEvent(new CustomEvent("echorooms:session-ended"));
   closeRoom();
   resetAppState();
   resetKeyring();

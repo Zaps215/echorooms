@@ -31,6 +31,21 @@ const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
 let currentProfile = null;
 
+async function updateAvatarElement(element, name, avatarPath) {
+  if (!element) return;
+  setUserAvatar(name, element);
+  element.classList.remove("has-img");
+  element.style.backgroundImage = "";
+  if (!avatarPath || !supabase) return;
+  const { data, error } = await supabase.storage.from("avatars").createSignedUrl(avatarPath, 3600);
+  if (error) {
+    if (import.meta.env.DEV) console.warn("[profile] Could not load profile photo.", error);
+    return;
+  }
+  element.style.backgroundImage = `url("${data.signedUrl}")`;
+  element.classList.add("has-img");
+}
+
 /** True when the signed-in user still needs to claim a @username. */
 export function needsUsername() {
   return !getCurrentUsername();
@@ -65,7 +80,7 @@ export async function loadProfile() {
 
   const { data } = await supabase
     .from("profiles")
-    .select("display_name, username, status_text")
+    .select("display_name, username, status_text, avatar_path")
     .eq("id", user.id)
     .single();
 
@@ -75,8 +90,13 @@ export async function loadProfile() {
 
   // Sidebar footer.
   dom.meName.textContent = displayName;
-  setUserAvatar(displayName, dom.meAvatar);
-  setUserAvatar(displayName, dom.navAvatar);
+  await Promise.all([
+    updateAvatarElement(dom.meAvatar, displayName, data?.avatar_path),
+    updateAvatarElement(dom.navAvatar, displayName, data?.avatar_path),
+    updateAvatarElement(dom.profileAvatarEl, displayName, data?.avatar_path),
+    updateAvatarElement(dom.feedComposeAvatar, displayName, data?.avatar_path),
+    updateAvatarElement(dom.feedPostAvatar, displayName, data?.avatar_path),
+  ]);
 
   // Profile page header + hero (Telegram-style: name doubles as the title).
   if (dom.profileHeadTitle) dom.profileHeadTitle.textContent = displayName;
@@ -85,10 +105,6 @@ export async function loadProfile() {
     dom.profileHandleEl.textContent = data?.username ? `@${data.username}` : "";
   }
   if (dom.profileStatusText) dom.profileStatusText.textContent = data?.status_text || "";
-  if (dom.profileAvatarEl) {
-    setUserAvatar(displayName, dom.profileAvatarEl);
-  }
-
   // Prefill the edit dialog and lock the username once it has been claimed.
   if (data) {
     dom.profileName.value = data.display_name || "";
@@ -205,7 +221,30 @@ function initDialogControls() {
 
 function initProfilePage() {
   dom.btnOpenProfile?.addEventListener("click", () => showProfile());
-  dom.btnProfileBack?.addEventListener("click", () => hideProfile());
+  dom.btnProfileBack?.addEventListener("click", () => {
+    if (!dom.profileSettings?.classList.contains("is-hidden")) {
+      dom.profileSettings.classList.add("is-hidden");
+      dom.profileContent?.classList.remove("is-hidden");
+      if (dom.profileHeadTitle) dom.profileHeadTitle.textContent = "Profile";
+      return;
+    }
+    hideProfile();
+  });
+  dom.btnProfileSettings?.addEventListener("click", () => {
+    dom.profileContent?.classList.add("is-hidden");
+    dom.profileSettings?.classList.remove("is-hidden");
+    if (dom.profileHeadTitle) dom.profileHeadTitle.textContent = "Settings";
+  });
+  dom.btnSettingsEditProfile?.addEventListener("click", openProfileDialog);
+  dom.btnSettingsSignout?.addEventListener("click", () => dom.btnProfileLogout?.click());
+  if ("Notification" in window && dom.notificationSettingStatus) {
+    if (Notification.permission === "granted") {
+      dom.notificationSettingStatus.textContent = "Notifications are enabled for this browser.";
+      if (dom.btnEnableNotifications) dom.btnEnableNotifications.textContent = "Enabled";
+    } else if (Notification.permission === "denied") {
+      dom.notificationSettingStatus.textContent = "Notifications are blocked. Allow them in your browser's site settings.";
+    }
+  }
   window.addEventListener("echorooms:profile-save-error", (event) => {
     showProfile();
     showError(dom.profilePageError, event.detail?.message || "Could not save your profile. Please try again.");

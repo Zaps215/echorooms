@@ -58,6 +58,16 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 
 ### Must-have features
 
+- Separate social Feed and private Chats sections
+- Persistent text/photo posts with optional camera capture and voice-note recording
+- Post likes and comments
+- Signed-in community feed with a profile post grid
+- Profile and Settings pages, including appearance and browser notification preferences
+- Chat filters for All, Groups, and Channels, with blue chat styling to match the EchoRooms brand
+- Four joinable, read-only bot-curated channels with seeded starter updates
+- Channel memberships can be managed by the signed-in user; channel posts are not writable by users
+- Request camera or microphone access only after the user chooses the corresponding action; use the device file picker for gallery selection
+- Keep social-post storage separate from private room data and preserve E2EE for room messages and attachments
 - Email and password authentication
 - Sign-up collects a display name and unique @username before email verification; passwords require at least 8 characters
 - Sign-in and profile actions provide in-progress states and actionable credential and connection errors
@@ -83,10 +93,9 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 ### Version 1.1 features
 
 - Follow relationships and approval controls for private profiles
-- Social posts with text and image/video attachments, stored separately from chat messages
 - A chronological following feed, with optional user-controlled ranking
-- Post likes, comments, and sharing controls
 - Stories with expiry, audience controls, and viewer list
+- Post sharing controls
 - Feed privacy settings and reporting/moderation controls
 - Search/discovery restricted to explicitly public social posts and profiles
 - Optional AI assistance over explicitly public or consented social content
@@ -112,7 +121,7 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 
 - Building a complete project-management system
 - Public discovery of private rooms or private conversations
-- Treating the initial Feed screen as a published-post feed before post storage, privacy, and moderation are implemented
+- Offering follower-only/private-profile audience controls before those controls are implemented
 - Using private messages or decrypted room history to rank feeds, train models, or provide AI
 - Supporting video calls
 - Adding multiple AI providers or complex agent workflows
@@ -140,18 +149,24 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 - Compact global navigation for Feed, Chats, and the signed-in profile
 - Feed landing page with a social-style welcome surface and shortcuts to existing rooms
 - Chats section with the room list, search, group/direct-message creation, and conversation panel
+- All/Groups/Channels filters; Channels offers bot-curated read-only update streams and join/leave controls
 - Right room-information panel on desktop
 - Mobile: Feed and Chats use a bottom navigation bar; the Chats section swaps between room list and conversation. The chat header's back arrow returns to the list. The information panel opens from the room header as a right-hand drawer on small screens.
 - Safe-area insets respect notches/keyboards, and form/chat inputs use 16px type so iOS does not zoom on focus.
 
-### Feed (social publishing is planned)
+### Feed (social publishing MVP)
 
-- A welcoming Feed home with a clear path into Chats
+- A signed-in community timeline with text and photo posts, optional camera capture, and voice notes
+- Post likes, comments, and deletion by the post author
+- Profile post grid and post count
 - Shortcuts to real rooms already available to the signed-in user
-- Future post timeline, post creation, media, likes, comments, follows, and stories
-- Feed items must follow explicit audience/privacy rules and must never expose private room messages
+- Camera and microphone browser permissions are requested only after an explicit user action; gallery photos use the device file picker
+- Channel starter posts are curated sample content; no external news source or continuously running bot publisher is connected yet
+- Posts and media are stored separately from private room messages; social media uses private storage and signed URLs
+- In this MVP, every signed-in member can view all feed posts and media. Follows, private-account audiences, reporting, and moderation are not yet implemented.
+- Feed items must never expose private room messages or weaken their end-to-end encryption
 
-The current Feed is a navigation and home surface, not a published-content timeline. Social posts and stories need their own persistence, access policies, and moderation decisions before they are enabled. Room conversations remain private and end-to-end encrypted.
+Stories, follower-based visibility, reporting, and moderation remain future work. Room conversations remain private and end-to-end encrypted.
 
 ### Delivery plan
 
@@ -159,10 +174,11 @@ The current Feed is a navigation and home surface, not a published-content timel
 | --- | --- | --- |
 | 1. Social-style shell | Feed and Chats navigation, responsive mobile bar, feed welcome state, links to actual private rooms | Done |
 | 2. Onboarding and reliability | Upfront username capture, password guidance, credential/network feedback, async action states | Done |
-| 3. Social identity and privacy | Follow relationships, private profiles, audience model, blocking/reporting rules, retention decisions | Planned |
-| 4. Social publishing | Separate post/story schema and storage, media upload, timeline, post composer | Planned |
-| 5. Engagement and discovery | Comments, reactions, sharing, public-content search, moderation and abuse limits | Planned |
-| 6. Optional assistance | AI over explicitly public/consented social content only; no private-room message access | Planned |
+| 3. Social publishing MVP | Separate post schema and private storage, media upload, timeline, composer, camera/voice permission flows, likes, comments, profile grid, and settings | Done |
+| 4. Curated channels MVP | Joinable read-only bot channel schema, seeded starter updates, channel browsing and reader UI | Done |
+| 5. Social identity and privacy | Follow relationships, private profiles, audience model, blocking/reporting rules, retention decisions | Planned |
+| 6. Engagement and discovery | Stories, sharing, public-content search, moderation and abuse limits | Planned |
+| 7. Optional assistance | AI over explicitly public/consented social content only; no private-room message access | Planned |
 
 Ship each phase behind explicit access policies and tests. Never construct the feed by copying room messages: room content is encrypted, membership-scoped, and intentionally excluded.
 
