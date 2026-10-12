@@ -25,6 +25,56 @@ export function hideError(errorEl) {
   errorEl.textContent = "";
 }
 
+/** Restores a button's label and spinner after an async action. */
+export function setButtonLoading(button, isLoading, loadingLabel = "Please wait…") {
+  if (!button) return;
+  const label = button.querySelector(".btn-label");
+  const spinner = button.querySelector(".spinner");
+
+  if (isLoading) {
+    if (label) {
+      if (!("defaultLabel" in button.dataset)) {
+        button.dataset.defaultLabel = label.textContent;
+      }
+      label.textContent = loadingLabel;
+    }
+    if (spinner) spinner.hidden = false;
+    button.disabled = true;
+    button.classList.add("is-loading");
+    button.setAttribute("aria-busy", "true");
+    return;
+  }
+
+  if (label && "defaultLabel" in button.dataset) {
+    label.textContent = button.dataset.defaultLabel;
+  }
+  if (spinner) spinner.hidden = true;
+  button.disabled = false;
+  button.classList.remove("is-loading");
+  button.removeAttribute("aria-busy");
+}
+
+function isConnectionError(error) {
+  const details = [error?.name, error?.message, error?.code]
+    .filter((value) => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+  const status = error?.status;
+  return (
+    status === 0 ||
+    (typeof status === "number" && status >= 500) ||
+    /failed to fetch|network(error| request failed)?|load failed|connection (lost|failed|refused|reset)|timed? ?out|timeout|database.*(unavailable|connection|error)|server.*unavailable/.test(details)
+  );
+}
+
+/** Returns an actionable retry message for network/server failures. */
+export function getRequestErrorMessage(error, fallback) {
+  if (isConnectionError(error)) {
+    return "Connection to EchoRooms failed. Check your internet connection and try again.";
+  }
+  return fallback;
+}
+
 /**
  * Maps Supabase auth error messages to a human-friendly, non-technical string.
  * We intentionally keep raw backend details out of user-facing UI; only the
@@ -32,14 +82,26 @@ export function hideError(errorEl) {
  */
 export function showAuthError(error) {
   const msg = error?.message?.toLowerCase() || "";
-  if (msg.includes("invalid login credentials")) {
-    return "That email or password is incorrect.";
+  const retryMessage = getRequestErrorMessage(error);
+  if (retryMessage) return retryMessage;
+  if (
+    msg.includes("invalid login credentials") ||
+    msg.includes("invalid_credentials") ||
+    msg.includes("invalid password")
+  ) {
+    return "Your email or password is incorrect. Check both and try again.";
   }
   if (msg.includes("email not confirmed")) {
     return "Confirm your email address before signing in.";
   }
   if (msg.includes("user already registered")) {
     return "An account already exists for that email. Try signing in.";
+  }
+  if (msg.includes("username") && (msg.includes("taken") || msg.includes("already exists"))) {
+    return "That username is already taken. Choose a different username.";
+  }
+  if (msg.includes("password") && (msg.includes("weak") || msg.includes("length"))) {
+    return "Choose a stronger password with at least 8 characters.";
   }
   if (msg.includes("error sending confirmation email")) {
     return "Supabase could not send the confirmation email. Configure an email provider in Supabase.";

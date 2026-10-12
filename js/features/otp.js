@@ -8,7 +8,7 @@
 import * as dom from "../core/dom.js";
 import { otpState, state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
-import { showError, hideError, showAuthError } from "../core/utils.js";
+import { showError, hideError, showAuthError, getRequestErrorMessage } from "../core/utils.js";
 import { switchAuthForm } from "../core/navigation.js";
 import { setPendingPassword } from "../core/keyring.js";
 
@@ -63,10 +63,11 @@ export function startOtp(purpose) {
 }
 
 /** Begins the sign-up OTP flow, storing the credentials pending verification. */
-export function startSignupOtp(email, name, password) {
+export function startSignupOtp(email, name, username, password) {
   otpState.purpose = "signup";
   otpState.email = email;
   otpState.pendingName = name;
+  otpState.pendingUsername = username;
   otpState.pendingPassword = password;
   dom.otpTitle.textContent = "Verify your email";
   startOtp("signup");
@@ -107,27 +108,56 @@ async function verifyOtp(token) {
     if (otpState.purpose === "signup") {
       const user = result.data.user;
       const pendingName = otpState.pendingName;
+      const pendingUsername = otpState.pendingUsername;
 
       // Persist the display name into both auth metadata and the profiles
       // table. updateUser alone only touches auth.users.raw_user_meta_data;
       // leaving it out of profiles would leave display_name = '' in the DB,
       // which previously made direct rooms and member lists show no name.
-      await supabase
+      const profileResult = await supabase
         .from("profiles")
-        .update({ display_name: pendingName })
+        .update({ display_name: pendingName, username: pendingUsername })
         .eq("id", user.id);
-      await supabase.auth.updateUser({
+      if (profileResult.error?.code === "23505") {
+        window.dispatchEvent(new CustomEvent("echorooms:username-required", {
+          detail: { usernameTaken: true },
+        }));
+      } else if (profileResult.error) {
+        window.dispatchEvent(new CustomEvent("echorooms:profile-save-error", {
+          detail: {
+            message: getRequestErrorMessage(
+              profileResult.error,
+              "Your account is ready, but we couldn't save your profile. Try again from your profile settings."
+            ),
+          },
+        }));
+      }
+      const userUpdate = await supabase.auth.updateUser({
         password: otpState.pendingPassword,
-        data: { display_name: pendingName },
+        data: { display_name: pendingName, username: pendingUsername },
       });
+      if (userUpdate.error) {
+        window.dispatchEvent(new CustomEvent("echorooms:profile-save-error", {
+          detail: { message: showAuthError(userUpdate.error) },
+        }));
+      }
       state.currentUser = user;
       dom.authFormSignup.reset();
+      otpState.pendingUsername = "";
+      otpState.pendingName = "";
+      otpState.pendingPassword = "";
     } else {
       switchAuthForm("recovery");
       dom.recoveryPassword.focus();
     }
   } catch (error) {
-    showError(dom.otpError, "Something went wrong verifying that code.");
+    if (state.currentUser) {
+      window.dispatchEvent(new CustomEvent("echorooms:profile-save-error", {
+        detail: { message: showAuthError(error) },
+      }));
+    } else {
+      showError(dom.otpError, showAuthError(error));
+    }
     resetOtpBoxes();
   }
 }

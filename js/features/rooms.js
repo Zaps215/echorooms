@@ -71,6 +71,7 @@ function renderMembersList() {
 }
 
 function renderRooms(filterText = "") {
+  renderFeedRooms();
   const filtered = state.rooms.filter((r) =>
     r.name.toLowerCase().includes(filterText.toLowerCase())
   );
@@ -83,6 +84,37 @@ function renderRooms(filterText = "") {
     dom.roomList.innerHTML =
       '<p style="padding: 16px; text-align: center; color: var(--muted); font-size: 13px;">No rooms found.</p>';
     return;
+  }
+
+  function renderFeedRooms() {
+    if (!dom.feedRoomList) return;
+    if (!state.rooms.length) {
+      dom.feedRoomList.innerHTML =
+        '<p class="feed-rooms-empty">Your chats will show up here once you start a conversation.</p>';
+      return;
+    }
+
+    dom.feedRoomList.innerHTML = state.rooms
+      .slice(0, 6)
+      .map((room) => {
+        const hash = room.name.charCodeAt(0) % ROOM_PALETTE.length;
+        const initial = room.name.trim().charAt(0).toUpperCase() || "?";
+        const kind = room.room_type === "direct" ? "Direct chat" : "Group";
+        return `
+          <button class="feed-room" type="button" data-room-id="${room.id}">
+            <span class="feed-room-avatar" style="--room-color:${ROOM_PALETTE[hash]}">${escapeHtml(initial)}</span>
+            <span class="feed-room-copy">
+              <span class="feed-room-name">${escapeHtml(room.name)}</span>
+              <span class="feed-room-kind">${kind}</span>
+            </span>
+            <span class="feed-room-arrow" aria-hidden="true">↗</span>
+          </button>`;
+      })
+      .join("");
+
+    dom.feedRoomList.querySelectorAll(".feed-room").forEach((button) => {
+      button.addEventListener("click", () => selectRoom(button.dataset.roomId));
+    });
   }
 
   dom.roomList.innerHTML = tabFiltered
@@ -308,9 +340,6 @@ export async function loadRooms() {
     .map((m) => m.rooms);
   renderRooms();
 
-  if (state.rooms.length > 0) {
-    selectRoom(state.rooms[0].id);
-  }
   return state.rooms.length;
 }
 
@@ -827,4 +856,10 @@ export function initRooms() {
   initSidebar();
   initRestoreAndDanger();
   initClearMessages();
+  window.addEventListener("echorooms:username-required", (event) => {
+    openUsernameDialog();
+    if (event.detail?.usernameTaken) {
+      showError(dom.usernameError, "That username is already taken. Choose a different username.");
+    }
+  });
 }

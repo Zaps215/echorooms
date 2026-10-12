@@ -8,7 +8,7 @@
 import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
-import { escapeHtml } from "../core/utils.js";
+import { escapeHtml, getRequestErrorMessage } from "../core/utils.js";
 import { showChatList } from "../core/navigation.js";
 import { showConfirm } from "../core/confirm.js";
 import { getRoomKey, ensureRoomKey, canManageRoom, shareMissingKeys } from "../core/keyring.js";
@@ -292,7 +292,7 @@ async function sendMessage(roomId, body) {
     clearReply();
     const index = state.messages.findIndex((m) => m.id === pendingId);
     const row = normalize(data);
-    row.body = body; // keep the plaintext we just computed
+    row.body = body;
     recentSends.add(row.id);
     if (index !== -1) state.messages.splice(index, 1, row);
     renderMessages({ stickToBottom: true });
@@ -1169,6 +1169,7 @@ export async function openRoom(roomId) {
   if (!room || !supabase) return;
 
   unsubscribe();
+  activeRoomKey = null;
   state.currentRoomId = roomId;
   state.messages = [];
   state.messagesLoading = true;
@@ -1223,7 +1224,7 @@ export async function openRoom(roomId) {
     state.messagesLoading = false;
     renderMessages();
     setComposerNotice(
-      "Messages couldn't be loaded for this chat — this device doesn't hold the room key yet. Ask the room admin to invite you again or re-share the key."
+      getRequestErrorMessage(error, "Messages couldn't be loaded for this chat — this device doesn't hold the room key yet. Ask the room admin to invite you again or re-share the key.")
     );
   }
 }

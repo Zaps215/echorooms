@@ -1,9 +1,8 @@
 // Navigation between the auth shell and the application shell, plus the
 // password reveal toggle. These are shared by the auth and OTP flows.
 //
-// The app shell is two panes: the chat list (sidebar) and the conversation.
-// On wide viewports both are visible at once; on narrow ones a single
-// `chat-open` class on the app wrapper swaps between them.
+// The signed-in shell switches between Feed and Chats. The Chats view keeps
+// its room-list/conversation layout, with a single-pane switch on mobile.
 
 import * as dom from "./dom.js";
 
@@ -17,6 +16,12 @@ export function switchAuthForm(view) {
 export function showAppShell() {
   dom.authWrapper.classList.add("is-hidden");
   dom.appWrapper.classList.remove("is-hidden");
+  if (
+    !dom.appWrapper.classList.contains("feed-section-active") &&
+    !dom.appWrapper.classList.contains("chat-section-active")
+  ) {
+    showFeed();
+  }
 }
 
 export function showAuthShell() {
@@ -24,20 +29,49 @@ export function showAuthShell() {
   dom.authWrapper.classList.remove("is-hidden");
   if (dom.info) dom.info.classList.add("is-hidden");
   closeInfo();
+  dom.appWrapper.classList.remove("chat-open", "chat-section-active");
+  dom.appWrapper.classList.add("feed-section-active");
+  syncAppNavigation("feed");
   switchAuthForm("signin");
 }
 
-// --- Chat list / conversation panes -----------------------------------------
+// --- Main sections and chat panes -------------------------------------------
+
+function syncAppNavigation(view) {
+  dom.appViewButtons.forEach((button) => {
+    const isActive = button.dataset.appView === view;
+    button.classList.toggle("active", isActive);
+    if (isActive) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+}
+
+export function showFeed() {
+  dom.appWrapper.classList.add("feed-section-active");
+  dom.appWrapper.classList.remove("chat-section-active", "chat-open");
+  closeInfo();
+  syncAppNavigation("feed");
+}
+
+export function showChats() {
+  dom.appWrapper.classList.add("chat-section-active");
+  dom.appWrapper.classList.remove("feed-section-active", "chat-open");
+  closeInfo();
+  syncAppNavigation("chats");
+}
 
 /** Shows the chat list alone. On narrow viewports this leaves the conversation. */
 export function showChatList() {
-  dom.appWrapper.classList.remove("chat-open");
-  closeInfo();
+  showChats();
+  if (dom.chatEmpty) dom.chatEmpty.classList.remove("is-hidden");
+  if (dom.chatActive) dom.chatActive.classList.add("is-hidden");
 }
 
 /** Shows the open conversation. */
 export function showRoomChat() {
-  dom.appWrapper.classList.add("chat-open");
+  dom.appWrapper.classList.add("chat-section-active", "chat-open");
+  dom.appWrapper.classList.remove("feed-section-active");
+  syncAppNavigation("chats");
   if (dom.chatEmpty) dom.chatEmpty.classList.add("is-hidden");
   if (dom.chatActive) dom.chatActive.classList.remove("is-hidden");
   closeInfo();
@@ -81,6 +115,13 @@ function syncDrawerBackdrop() {
 /** Wires the shared drawer backdrop and Escape-to-close behavior. */
 export function initNavigation() {
   dom.drawerBackdrop?.addEventListener("click", closeInfo);
+  dom.appViewButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.appView === "feed") showFeed();
+      else if (button.dataset.appView === "chats") showChats();
+    });
+  });
+  dom.btnNavProfile?.addEventListener("click", () => showProfile());
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;

@@ -37,7 +37,7 @@ Start the local frontend:
 npm run dev
 ```
 
-Open the URL printed by Vite. The app is a focused realtime messenger: OTP email verification, room creation and listing, encrypted direct and group messaging with @username handles and mentions, member invitations, and encrypted attachments.
+Open the URL printed by Vite. The signed-in app has separate Feed and Chats sections. Feed is the social-style home and links to the user's existing private rooms; Chats contains room creation and listing, encrypted direct and group messaging with @username handles and mentions, member invitations, and encrypted attachments. Published social posts and stories are planned, not yet backed by storage.
 
 ## Current Checkpoint
 
@@ -46,14 +46,18 @@ Open the URL printed by Vite. The app is a focused realtime messenger: OTP email
 - [x] Automatic profile creation
 - [x] Email OTP verification on sign-up (6-digit code in a Telegram-style box UI) to block fake accounts
 - [x] Password reset via email OTP (replaces the reset-link flow)
+- [x] Sign-up collects a display name and unique @username before email verification; password strength requires at least 8 characters
+- [x] Sign-in and profile actions show progress, recover cleanly from request errors, and give actionable credential/network feedback
 - [x] Profile editing with username and status
 - [x] Dedicated Telegram-style profile page: name in the header, large centered avatar with camera badge, name/handle/status, and a row of circular action buttons (Edit, Sign out, Delete)
 - [x] Confirm-on-logout and type-your-email confirm-on-delete flows via a shared confirmation dialog
 - [x] Private avatar uploads with authenticated storage policies
 - [x] Session changes return unauthenticated users to the login view
+- [x] Instagram-inspired Feed and Chats navigation with a responsive app rail/bottom bar
+- [x] Feed home with shortcuts to the user's actual private rooms; no sample or public content is shown
 - [x] Secure room creation and room listing
 - [x] Centered, single-card auth layout with the logo above the form
-- [x] Light theme (blue primary, amber highlights) applied across the app shell
+- [x] Light theme (violet primary, warm highlights) applied across the app shell
 - [x] Two-pane layout: room list (All/Groups tabs, room filter, round initial avatars) beside the conversation pane
 - [x] Room info slide-over with members, invites, attachments, encryption details, and clear/delete/dissolve/restore actions
 - [x] Mobile single-pane layout: the room list and conversation swap via a back button, with the info panel as an overlay drawer
@@ -67,6 +71,8 @@ Open the URL printed by Vite. The app is a focused realtime messenger: OTP email
 - [x] Room creation with the owner automatically provisioning the room's encryption key
 - [x] Replies with an inline quoted preview of the original message
 - [x] E2EE attachments: encrypted image, video, audio, and document uploads
+- [ ] Persistent social posts, stories, likes, comments, and follow/privacy controls (planned; see `ECHOROOMS_PROGRAM.md`)
+- [ ] Instagram-style discovery, server search, recommendations, and AI features (planned for explicitly public/consented social content; existing chats remain end-to-end encrypted)
 
 ## Commands
 
@@ -77,16 +83,16 @@ Open the URL printed by Vite. The app is a focused realtime messenger: OTP email
 
 ## Project Structure
 
-- `index.html` contains the initial application shell.
+- `index.html` contains authentication, the Feed/Chats application shell, and dialogs.
 - `public/` contains static pages served as-is (Terms and Conditions and Privacy Policy).
-- `css/` contains the visual foundation.
+- `css/` contains the visual foundation and responsive social-style app shell.
 - `js/main.js` is the entry point: it wires the auth-session lifecycle and bootstraps each feature module.
-- `js/core/` holds shared concerns — the DOM registry (`dom.js`), app state (`state.js`), Supabase access (`supabase.js`), reusable helpers (`utils.js`, `navigation.js`, `confirm.js`), the conversation header view model (`chat-header.js`), and the E2EE primitives (`crypto.js`) with the identity/keyring manager (`keyring.js`).
+- `js/core/` holds shared concerns — the DOM registry (`dom.js`), app state (`state.js`), Supabase access (`supabase.js`), reusable helpers (`utils.js`, `navigation.js`), Feed/Chats navigation, dialogs (`confirm.js`), the conversation header view model (`chat-header.js`), and the E2EE primitives (`crypto.js`) with the identity/keyring manager (`keyring.js`).
 - `js/features/` holds feature logic — auth (`auth.js`), email OTP verification (`otp.js`), rooms and member management (`rooms.js`), profile/account (`profile.js`), chat (`chat.js`), and encrypted attachment handling (`media.js`).
 - `js/supabase-client.js` initializes the Supabase client.
 - `supabase/setup.sql` is the consolidated schema; `supabase/migrations/` contains the incremental migrations that produced it, including `0015_drop_removed_features.sql` which strips features from a database deployed against earlier revisions. `supabase/verify.sql` holds ad-hoc verification queries.
 - `supabase/functions/` is reserved for secure Edge Functions.
-- `tests/` contains the Node test suite. `crypto.mjs` covers the encryption primitives; `chat-header.mjs` covers the header view model; `setup-sql.mjs` checks `setup.sql` is re-runnable; `sql-ambiguity.mjs` checks queries avoid ambiguous column references; `schema-queries.mjs` checks every table and column the client sorts or filters by actually exists.
+- `tests/` contains the Node test suite. `crypto.mjs` covers the encryption primitives; `chat-header.mjs` covers the header view model; `auth-errors.mjs` covers credential/network messaging and async button state; `setup-sql.mjs` checks `setup.sql` is re-runnable; `sql-ambiguity.mjs` checks queries avoid ambiguous column references; `schema-queries.mjs` checks every table and column the client sorts or filters by actually exists.
 - `echorooms-services/` contains the original numbered service build plans. Several of those slices (reactions, pins, presence, 2FA, onboarding, chat settings, tasks, search) are not part of the current app.
 - `ECHOROOMS_PROGRAM.md` is the complete product specification.
 

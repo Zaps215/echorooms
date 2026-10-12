@@ -8,7 +8,7 @@ Its core promise is:
 
 > A messaging app that remembers, organizes, and acts on your conversations.
 
-Unlike a basic chat clone, EchoRooms turns messages into durable knowledge. A conversation can produce decisions, tasks, files, polls, summaries, and searchable history.
+EchoRooms pairs private conversations with a social-style home feed. Unlike a basic chat clone, it is designed to help people stay close to their communities while turning useful conversation context into durable knowledge.
 
 ---
 
@@ -41,17 +41,16 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 ### Primary workflow
 
 1. A user signs up or logs in.
-2. They create a room or accept an invitation.
-3. Members exchange realtime messages.
-4. They reply to messages, react, upload files, and mention members.
-5. A member turns a message into a task, decision, poll, or event.
-6. The room automatically keeps those items visible in its information panel.
-7. Members search the conversation or request an AI summary.
-8. The room becomes a useful record instead of an unreadable message archive.
+2. They land on Feed, a home for updates from people and communities they choose to follow.
+3. They move into Chats to create a room, accept an invitation, or continue a private conversation.
+4. Members exchange realtime messages, reply, mention members, and share encrypted attachments.
+5. A member can later promote useful conversation context into structured tasks, decisions, or other room tools.
+6. Each room remains a useful record instead of an unreadable message archive.
 
-### Core loop
+### Core loops
 
-**Talk -> capture important context -> act -> return to the room.**
+- **Social:** Share an update -> see what your circle is up to -> start a conversation.
+- **Messaging:** Talk -> capture important context -> act -> return to the room.
 
 ---
 
@@ -60,6 +59,8 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 ### Must-have features
 
 - Email and password authentication
+- Sign-up collects a display name and unique @username before email verification; passwords require at least 8 characters
+- Sign-in and profile actions provide in-progress states and actionable credential and connection errors
 - User profile with display name and avatar
 - One-to-one rooms
 - Group rooms
@@ -75,9 +76,20 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 - Tasks extracted manually from messages
 - Room overview showing pinned messages and open tasks
 - Responsive desktop and mobile interface
+- Dedicated Feed and Chats sections with persistent, mobile-friendly navigation
+- Feed home with shortcuts into the user's existing private rooms
+- Preserve end-to-end encryption for room messages and encrypted attachments
 
 ### Version 1.1 features
 
+- Follow relationships and approval controls for private profiles
+- Social posts with text and image/video attachments, stored separately from chat messages
+- A chronological following feed, with optional user-controlled ranking
+- Post likes, comments, and sharing controls
+- Stories with expiry, audience controls, and viewer list
+- Feed privacy settings and reporting/moderation controls
+- Search/discovery restricted to explicitly public social posts and profiles
+- Optional AI assistance over explicitly public or consented social content
 - AI-generated room summaries
 - AI extraction of tasks and decisions
 - Polls
@@ -99,14 +111,17 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 ### Explicit non-goals for the MVP
 
 - Building a complete project-management system
-- Building a social media feed
+- Public discovery of private rooms or private conversations
+- Treating the initial Feed screen as a published-post feed before post storage, privacy, and moderation are implemented
+- Using private messages or decrypted room history to rank feeds, train models, or provide AI
 - Supporting video calls
-- Supporting public discovery of private rooms
 - Adding multiple AI providers or complex agent workflows
 
 > **Note:** Hybrid end-to-end encryption (per-room AES keys wrapped per member; PBKDF2 for
-> email accounts, device-bound for social logins) is implemented. This trades away
-> server-side search, summarization, and AI assistants on message bodies by design.
+> email accounts, device-bound for social logins) is implemented and remains in place for
+> private room messages and attachments. The server cannot search, summarize, or run AI over
+> those message bodies. Social publishing must use separate storage and access policies;
+> enabling it must never weaken the encryption of existing rooms.
 
 ---
 
@@ -122,11 +137,34 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 
 ### Main application shell
 
-- Left sidebar with rooms and unread counts
-- Main conversation panel
+- Compact global navigation for Feed, Chats, and the signed-in profile
+- Feed landing page with a social-style welcome surface and shortcuts to existing rooms
+- Chats section with the room list, search, group/direct-message creation, and conversation panel
 - Right room-information panel on desktop
-- Mobile: the sidebar and information panel become off-canvas drawers. A hamburger button in the home header opens the room list; the chat header's back arrow returns to the list; tapping the backdrop or pressing Escape closes any drawer. The information panel opens from the room header as a right-hand drawer on small screens.
+- Mobile: Feed and Chats use a bottom navigation bar; the Chats section swaps between room list and conversation. The chat header's back arrow returns to the list. The information panel opens from the room header as a right-hand drawer on small screens.
 - Safe-area insets respect notches/keyboards, and form/chat inputs use 16px type so iOS does not zoom on focus.
+
+### Feed (social publishing is planned)
+
+- A welcoming Feed home with a clear path into Chats
+- Shortcuts to real rooms already available to the signed-in user
+- Future post timeline, post creation, media, likes, comments, follows, and stories
+- Feed items must follow explicit audience/privacy rules and must never expose private room messages
+
+The current Feed is a navigation and home surface, not a published-content timeline. Social posts and stories need their own persistence, access policies, and moderation decisions before they are enabled. Room conversations remain private and end-to-end encrypted.
+
+### Delivery plan
+
+| Phase | Scope | Status |
+| --- | --- | --- |
+| 1. Social-style shell | Feed and Chats navigation, responsive mobile bar, feed welcome state, links to actual private rooms | Done |
+| 2. Onboarding and reliability | Upfront username capture, password guidance, credential/network feedback, async action states | Done |
+| 3. Social identity and privacy | Follow relationships, private profiles, audience model, blocking/reporting rules, retention decisions | Planned |
+| 4. Social publishing | Separate post/story schema and storage, media upload, timeline, post composer | Planned |
+| 5. Engagement and discovery | Comments, reactions, sharing, public-content search, moderation and abuse limits | Planned |
+| 6. Optional assistance | AI over explicitly public/consented social content only; no private-room message access | Planned |
+
+Ship each phase behind explicit access policies and tests. Never construct the feed by copying room messages: room content is encrypted, membership-scoped, and intentionally excluded.
 
 ### Room list
 
@@ -174,14 +212,15 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 
 ## 5. Visual Direction
 
-EchoRooms should feel like a calm, intelligent workspace rather than a noisy social feed.
+EchoRooms should feel like a welcoming social app without compromising the calm, private feel of its chats.
 
-- Use a clean light base with a blue primary accent and warm amber highlights.
+- Take cues from familiar social apps: simple persistent navigation, a scannable home feed, expressive avatars, generous whitespace, and clear creation paths. Do not copy another product's branding or exact layouts.
+- Use a clean light base with a violet-to-rose accent and warm highlights.
 - Use a distinctive display font for room names and headings, paired with a highly readable sans-serif for messages.
-- Keep message density comfortable and scanning-friendly.
+- Keep feed cards expressive but restrained; keep message density comfortable and scanning-friendly.
 - Use color to distinguish message status, task status, presence, and system events.
 - Use restrained motion for new-message arrival, panel transitions, and loading states.
-- Make the conversation the primary visual focus; side panels should support it without competing.
+- Give Feed and Chats equal importance while keeping each screen focused; room information panels should support conversations without competing.
 - Ensure touch targets, composer controls, and attachment previews work on small screens.
 
 Do not use decorative cards inside other cards. Use framed surfaces only for individual tools, dialogs, and repeated room items.

@@ -11,7 +11,13 @@
 import * as dom from "../core/dom.js";
 import { state, resetAppState } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
-import { showError, hideError, setUserAvatar } from "../core/utils.js";
+import {
+  showError,
+  hideError,
+  setUserAvatar,
+  setButtonLoading,
+  getRequestErrorMessage,
+} from "../core/utils.js";
 import {
   showAuthShell,
   showProfile,
@@ -70,6 +76,7 @@ export async function loadProfile() {
   // Sidebar footer.
   dom.meName.textContent = displayName;
   setUserAvatar(displayName, dom.meAvatar);
+  setUserAvatar(displayName, dom.navAvatar);
 
   // Profile page header + hero (Telegram-style: name doubles as the title).
   if (dom.profileHeadTitle) dom.profileHeadTitle.textContent = displayName;
@@ -141,8 +148,8 @@ function initDialogControls() {
     }
 
     const submitBtn = dom.findPrimaryButton(dom.profileForm);
-    submitBtn.disabled = true;
     hideError(dom.profileError);
+    setButtonLoading(submitBtn, true, "Saving profile…");
 
     try {
       let avatarPath;
@@ -154,8 +161,10 @@ function initDialogControls() {
           .upload(avatarPath, avatar, { contentType: avatar.type, upsert: false });
 
         if (uploadResult.error) {
-          showError(dom.profileError, "Could not upload avatar. Please try again.");
-          submitBtn.disabled = false;
+          showError(
+            dom.profileError,
+            getRequestErrorMessage(uploadResult.error, "Could not upload avatar. Please try again.")
+          );
           return;
         }
       }
@@ -171,12 +180,14 @@ function initDialogControls() {
 
       const updateResult = await supabase.from("profiles").update(updates).eq("id", state.currentUser.id);
       if (updateResult.error) {
-        if (updateResult.code === "23505") {
-          showError(dom.profileError, "That username is already taken. Pick another.");
+        if (updateResult.error.code === "23505") {
+          showError(dom.profileError, "That username is already taken. Choose a different username.");
         } else {
-          showError(dom.profileError, "Could not save profile. Check that your username is available.");
+          showError(
+            dom.profileError,
+            getRequestErrorMessage(updateResult.error, "Could not save profile. Check that your username is available.")
+          );
         }
-        submitBtn.disabled = false;
         return;
       }
 
@@ -185,8 +196,9 @@ function initDialogControls() {
       dom.profileForm.reset();
       dom.profileUsername.disabled = false;
     } catch (error) {
-      showError(dom.profileError, "Could not save profile. Please try again.");
-      submitBtn.disabled = false;
+      showError(dom.profileError, getRequestErrorMessage(error, "Could not save profile. Please try again."));
+    } finally {
+      setButtonLoading(submitBtn, false);
     }
   });
 }
@@ -194,6 +206,10 @@ function initDialogControls() {
 function initProfilePage() {
   dom.btnOpenProfile?.addEventListener("click", () => showProfile());
   dom.btnProfileBack?.addEventListener("click", () => hideProfile());
+  window.addEventListener("echorooms:profile-save-error", (event) => {
+    showProfile();
+    showError(dom.profilePageError, event.detail?.message || "Could not save your profile. Please try again.");
+  });
 }
 
 function initSignOut() {
@@ -201,9 +217,23 @@ function initSignOut() {
     if (!supabase) return;
     const confirmed = await requestSignOut();
     if (!confirmed) return;
-    const result = await supabase.auth.signOut();
-    // Errors are surfaced by the auth state handler, which returns us to login.
-    void result;
+    hideError(dom.profilePageError);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        showProfile();
+        showError(
+          dom.profilePageError,
+          getRequestErrorMessage(error, "Couldn't sign out. Please try again.")
+        );
+      }
+    } catch (error) {
+      showProfile();
+      showError(
+        dom.profilePageError,
+        getRequestErrorMessage(error, "Couldn't sign out. Please try again.")
+      );
+    }
   };
 
   dom.btnLogout?.addEventListener("click", signOut);
@@ -261,23 +291,31 @@ function initUsernameDialog() {
     }
 
     const submitBtn = dom.findPrimaryButton(dom.usernameForm);
-    submitBtn.disabled = true;
     hideError(dom.usernameError);
+    setButtonLoading(submitBtn, true, "Checking username…");
 
-    const { error } = await claimUsername(value);
+    try {
+      const { error } = await claimUsername(value);
 
-    if (error) {
-      if (error.code === "23505") {
-        showError(dom.usernameError, "That username is already taken. Pick another.");
-      } else {
-        showError(dom.usernameError, "Could not save. Please try again.");
+      if (error) {
+        if (error.code === "23505") {
+          showError(dom.usernameError, "That username is already taken. Try another username.");
+        } else {
+          showError(
+            dom.usernameError,
+            getRequestErrorMessage(error, "Could not save username. Please try again.")
+          );
+        }
+        return;
       }
-      submitBtn.disabled = false;
-      return;
-    }
 
-    await loadProfile();
-    dom.usernameDialog.close();
+      await loadProfile();
+      dom.usernameDialog.close();
+    } catch (error) {
+      showError(dom.usernameError, getRequestErrorMessage(error, "Could not save username. Please try again."));
+    } finally {
+      setButtonLoading(submitBtn, false);
+    }
   });
 }
 

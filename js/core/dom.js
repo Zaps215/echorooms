@@ -31,6 +31,7 @@ export const authFormRecovery = query("auth-form-recovery");
 export const signinEmail = query("signin-email");
 export const signinPassword = query("signin-password");
 export const signupName = query("signup-name");
+export const signupUsername = query("signup-username");
 export const signupEmail = query("signup-email");
 export const signupPassword = query("signup-password");
 export const signupConfirm = query("signup-confirm");
@@ -60,13 +61,17 @@ export const otpBack = query("otp-back");
 export const otpResetHint = query("otp-reset-hint");
 
 export const roomList = query("room-list");
+export const feedRoomList = query("feed-room-list");
 export const roomSearch = query("room-search");
 export const meAvatar = query("me-avatar");
+export const navAvatar = query("nav-avatar");
 export const meName = query("me-name");
 export const btnNewRoom = query("btn-new-room");
 export const btnNewDm = query("btn-new-dm");
 export const btnLogout = query("btn-logout");
 export const btnOpenProfile = query("btn-open-profile");
+export const btnNavProfile = query("btn-nav-profile");
+export const appViewButtons = queryAll("[data-app-view]");
 
 export const chatEmpty = query("chat-empty");
 export const chatActive = query("chat-active");

@@ -19,6 +19,7 @@ export const otpState = {
   purpose: "signup", // "signup" | "reset"
   email: "",
   pendingName: "",
+  pendingUsername: "",
   pendingPassword: "",
   countdownTimer: null,
 };

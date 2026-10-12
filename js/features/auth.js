@@ -6,7 +6,14 @@
 
 import * as dom from "../core/dom.js";
 import { supabase, isSupabaseConfigured } from "../core/supabase.js";
-import { showError, hideError, showAuthError, updatePasswordStrength } from "../core/utils.js";
+import {
+  showError,
+  hideError,
+  showAuthError,
+  setButtonLoading,
+  getRequestErrorMessage,
+  updatePasswordStrength,
+} from "../core/utils.js";
 import { switchAuthForm, initPasswordToggle } from "../core/navigation.js";
 import { startSignupOtp, startResetOtp } from "./otp.js";
 import { setPendingPassword, rekeyIdentity } from "../core/keyring.js";
@@ -20,13 +27,14 @@ function bindSubmit(form, errorEl, handler) {
 }
 
 async function submitSignin(form, errorEl) {
+  if (!form.reportValidity()) return;
   if (!isSupabaseConfigured) {
-    showError(errorEl, "Secure sign-in is unavailable right now.");
+    showError(errorEl, "Can't connect to sign-in right now. Please try again later.");
     return;
   }
   const submitBtn = dom.findPrimaryButton(form);
-  submitBtn.disabled = true;
   hideError(errorEl);
+  setButtonLoading(submitBtn, true, "Signing in…");
   try {
     // The password must reach the keyring so the identity can be unwrapped.
     setPendingPassword(dom.signinPassword.value);
@@ -36,7 +44,6 @@ async function submitSignin(form, errorEl) {
     });
     if (result.error) {
       showError(errorEl, showAuthError(result.error));
-      submitBtn.disabled = false;
       return;
     }
     // The app shell opens via enterApp (which also gates 2FA); keep the form
@@ -44,13 +51,18 @@ async function submitSignin(form, errorEl) {
     form.reset();
   } catch (error) {
     showError(errorEl, showAuthError(error));
-    submitBtn.disabled = false;
+  } finally {
+    setButtonLoading(submitBtn, false);
   }
 }
 
 async function submitSignup(form, errorEl) {
+  if (!form.reportValidity()) {
+    showError(errorEl, "Complete each required field and check the form details.");
+    return;
+  }
   if (!isSupabaseConfigured) {
-    showError(errorEl, "Secure sign-up is unavailable right now.");
+    showError(errorEl, "Can't connect to sign-up right now. Check your connection and try again later.");
     return;
   }
   if (dom.signupPassword.value !== dom.signupConfirm.value) {
@@ -59,33 +71,38 @@ async function submitSignup(form, errorEl) {
   }
 
   const submitBtn = dom.findPrimaryButton(form);
-  submitBtn.disabled = true;
   hideError(errorEl);
+  setButtonLoading(submitBtn, true, "Creating account…");
 
   try {
     const email = dom.signupEmail.value.trim();
-    const result = await supabase.auth.signInWithOtp({ email });
+    const displayName = dom.signupName.value.trim();
+    const username = dom.signupUsername.value.trim();
+    const result = await supabase.auth.signInWithOtp({
+      email,
+      options: { data: { display_name: displayName, username } },
+    });
     if (result.error) {
       showError(errorEl, showAuthError(result.error));
-      submitBtn.disabled = false;
       return;
     }
 
-    startSignupOtp(email, dom.signupName.value.trim(), dom.signupPassword.value);
+    startSignupOtp(email, displayName, username, dom.signupPassword.value);
   } catch (error) {
     showError(errorEl, showAuthError(error));
-    submitBtn.disabled = false;
+  } finally {
+    setButtonLoading(submitBtn, false);
   }
 }
 
 async function submitForgot(form, errorEl) {
   if (!isSupabaseConfigured) {
-    showError(errorEl, "Password reset is unavailable right now.");
+    showError(errorEl, "Can't connect to password reset right now. Please try again later.");
     return;
   }
   const submitBtn = dom.findPrimaryButton(form);
-  submitBtn.disabled = true;
   hideError(errorEl);
+  setButtonLoading(submitBtn, true, "Sending code…");
 
   try {
     const email = dom.forgotEmail.value.trim();
@@ -97,20 +114,20 @@ async function submitForgot(form, errorEl) {
       } else {
         showError(errorEl, showAuthError(result.error));
       }
-      submitBtn.disabled = false;
       return;
     }
 
     startResetOtp(email);
   } catch (error) {
     showError(errorEl, showAuthError(error));
-    submitBtn.disabled = false;
+  } finally {
+    setButtonLoading(submitBtn, false);
   }
 }
 
 async function submitRecovery(form, errorEl) {
   if (!isSupabaseConfigured) {
-    showError(errorEl, "Password update is unavailable right now.");
+    showError(errorEl, "Can't connect to password update right now. Please try again later.");
     return;
   }
   if (dom.recoveryPassword.value !== dom.recoveryConfirm.value) {
@@ -119,33 +136,36 @@ async function submitRecovery(form, errorEl) {
   }
 
   const submitBtn = dom.findPrimaryButton(form);
-  submitBtn.disabled = true;
   hideError(errorEl);
+  setButtonLoading(submitBtn, true, "Updating password…");
 
   try {
     setPendingPassword(dom.recoveryPassword.value);
     const result = await supabase.auth.updateUser({ password: dom.recoveryPassword.value });
     if (result.error) {
-      showError(errorEl, "Could not update password. Please request a new reset link.");
-      submitBtn.disabled = false;
+      showError(
+        errorEl,
+        getRequestErrorMessage(result.error, "Could not update password. Please request a new reset link.")
+      );
       return;
     }
     // Re-wrap the identity key under the new password.
     await rekeyIdentity(dom.recoveryPassword.value);
     form.reset();
   } catch (error) {
-    showError(errorEl, "Could not update password.");
-    submitBtn.disabled = false;
+    showError(errorEl, getRequestErrorMessage(error, "Could not update password."));
+  } finally {
+    setButtonLoading(submitBtn, false);
   }
 }
 
 function handleGoogleOAuth(btn, errorEl) {
   if (!isSupabaseConfigured) {
-    showError(errorEl, "Google sign-in is unavailable right now.");
+    showError(errorEl, "Can't connect to Google sign-in right now. Please try again later.");
     return;
   }
   if (!btn) return;
-  btn.disabled = true;
+  setButtonLoading(btn, true, "Connecting…");
 
   supabase.auth
     .signInWithOAuth({
@@ -154,13 +174,13 @@ function handleGoogleOAuth(btn, errorEl) {
     })
     .then((result) => {
       if (result.error) {
-        showError(errorEl, "Google sign-in failed. Please try again.");
-        btn.disabled = false;
+        showError(errorEl, showAuthError(result.error));
+        setButtonLoading(btn, false);
       }
     })
-    .catch(() => {
-      showError(errorEl, "Google sign-in failed. Please try again.");
-      btn.disabled = false;
+    .catch((error) => {
+      showError(errorEl, showAuthError(error));
+      setButtonLoading(btn, false);
     });
 }
 
