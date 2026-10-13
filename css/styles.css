@@ -1438,7 +1438,7 @@ body[data-theme="dark"] .feed-post-content { color: #eee9f4; }
   background: linear-gradient(135deg, #3b82f6, #1d4fd7);
   box-shadow: 0 6px 18px rgba(37, 99, 235, .32);
 }
-.app-wrapper.chat-section-active .tab.active { background: #2563eb; }
+.app-wrapper.chat-section-active .tab.active { background: #2563eb; color: #fff; }
 .app-wrapper.chat-section-active .app-nav-link.active { background: #eff6ff; color: #1d4ed8; }
 .app-wrapper.chat-section-active .room-item.active { background: #eaf1ff; }
 body[data-theme="dark"] .channel-welcome { background: radial-gradient(circle at 50% 0, #202b3d, #17151c 56%); }
@@ -1631,6 +1631,7 @@ body[data-theme="dark"] .profile-post-text p { color: #d1d6de; }
 .app-wrapper.chat-section-active .side-brand { padding-bottom: 10px; font-size: 17px; }
 .app-wrapper.chat-section-active .side-search { height: 36px; margin-bottom: 8px; }
 .app-wrapper.chat-section-active .side-tabs { padding-bottom: 6px; }
+.app-wrapper.chat-section-active .room-list { padding-top: 14px; }
 .app-wrapper.chat-section-active .room-item { gap: 10px; padding: 7px 11px; }
 .app-wrapper.chat-section-active .room-avatar { width: 42px; height: 42px; font-size: 14px; }
 .app-wrapper.chat-section-active .room-top { min-height: 17px; }
