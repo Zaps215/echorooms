@@ -84,6 +84,9 @@ function postCard(post, likes, comments, currentUserId) {
           <button class="feed-comment-jump" type="button" data-focus-comment="${post.id}" aria-label="Write a comment">
             <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg>
           </button>
+          <button class="feed-share-button" type="button" data-share-post="${post.id}" aria-label="Share post" title="Share post">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.4m-6.6 7 6.6 4.4"/></svg>
+          </button>
         </div>
         <p class="feed-post-likes"><strong>${likes.length}</strong> ${likes.length === 1 ? "like" : "likes"}</p>
         ${body}
@@ -117,6 +120,19 @@ export async function loadFeedPosts() {
     dom.feedPostList.innerHTML = `<p class="feed-state-error">${escapeHtml(getRequestErrorMessage(error, "Couldn't load the feed. Please try again."))}</p>`;
     return;
   }
+  const requestedPostId = new URLSearchParams(window.location.hash.slice(1)).get("post");
+  if (requestedPostId && /^[0-9a-f-]{36}$/i.test(requestedPostId) && !(posts || []).some((post) => post.id === requestedPostId)) {
+    const targetResult = await supabase
+      .from("social_posts")
+      .select("id, author_id, body, media_path, media_type, media_mime_type, created_at, profiles!social_posts_author_id_fkey(display_name, username, avatar_path)")
+      .eq("id", requestedPostId)
+      .maybeSingle();
+    if (targetResult.error) {
+      dom.feedPostList.innerHTML = `<p class="feed-state-error">${escapeHtml(getRequestErrorMessage(targetResult.error, "Couldn't open the shared post. Please try again."))}</p>`;
+      return;
+    }
+    if (targetResult.data) posts?.unshift(targetResult.data);
+  }
 
   if (!posts?.length) {
     dom.feedPostList.innerHTML = `
@@ -127,6 +143,9 @@ export async function loadFeedPosts() {
         <button class="feed-primary" type="button" data-open-composer>Write your first post</button>
       </section>`;
     bindRenderedPostInputs();
+    if (requestedPostId) {
+      dom.feedPostList.querySelector(`[data-post-id="${requestedPostId}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
     notifyProfile();
     return;
   }
@@ -386,6 +405,28 @@ async function submitComment(form) {
   } finally {
     button.disabled = false;
   }
+
+  async function sharePost(button) {
+    const article = button.closest("[data-post-id]");
+    if (!article) return;
+    const caption = article.querySelector(".feed-post-body")?.textContent?.trim();
+    const text = caption || "A post shared with the EchoRooms community.";
+    const postId = article.dataset.postId;
+    const url = `${window.location.origin}${window.location.pathname}#post=${encodeURIComponent(postId)}`;
+    const shareData = { title: "EchoRooms post", text, url };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+      if (!navigator.clipboard?.writeText) throw new Error("Link sharing is not supported in this browser.");
+      await navigator.clipboard.writeText(`${text}\n${shareData.url}`);
+      showFeedNotice("Post text and the EchoRooms link were copied.");
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      showFeedNotice(getRequestErrorMessage(error, "Couldn't share this post. Please try again."));
+    }
+  }
 }
 
 function bindRenderedPostInputs() {
@@ -395,6 +436,9 @@ function bindRenderedPostInputs() {
   dom.feedPostList?.querySelectorAll("[data-focus-comment]").forEach((button) => {
     button.addEventListener("click", () => {
       document.getElementById(`comment-${button.dataset.focusComment}`)?.focus();
+    });
+    dom.feedPostList?.querySelectorAll("[data-share-post]").forEach((button) => {
+      button.addEventListener("click", () => sharePost(button));
     });
   });
   dom.feedPostList?.querySelectorAll("[data-comment-post]").forEach((form) => {

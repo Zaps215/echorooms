@@ -157,7 +157,9 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 ### Feed (social publishing MVP)
 
 - A signed-in community timeline with text and photo posts, optional camera capture, and voice notes
-- Post likes, comments, and deletion by the post author
+- Public posts visible to all signed-in members, with likes, comments, deletion by the author, and native share/copy links
+- Stories that expire after 24 hours, with per-story visibility for all members or a user-selected audience
+- Story records and private media access both enforce the chosen audience through Supabase row-level security
 - Profile post grid and post count
 - Shortcuts to real rooms already available to the signed-in user
 - Camera and microphone browser permissions are requested only after an explicit user action; gallery photos use the device file picker
@@ -166,7 +168,13 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 - In this MVP, every signed-in member can view all feed posts and media. Follows, private-account audiences, reporting, and moderation are not yet implemented.
 - Feed items must never expose private room messages or weaken their end-to-end encryption
 
-Stories, follower-based visibility, reporting, and moderation remain future work. Room conversations remain private and end-to-end encrypted.
+Follower-based visibility, reusable close-friends lists, reporting, and moderation remain future work. Room conversations remain private and end-to-end encrypted.
+
+### Calls
+
+- One-to-one audio and video calls can be started from a direct room; both people must have that conversation open to receive an incoming call.
+- Browser WebRTC carries media and private Supabase Realtime channels carry room-member-authorized signaling.
+- Calls require microphone/camera access on explicit user action. Group calling, background incoming-call notifications, TURN relays, and separately verified call identities are not part of this MVP; restricted networks may fail to connect.
 
 ### Delivery plan
 
@@ -176,9 +184,11 @@ Stories, follower-based visibility, reporting, and moderation remain future work
 | 2. Onboarding and reliability | Upfront username capture, password guidance, credential/network feedback, async action states | Done |
 | 3. Social publishing MVP | Separate post schema and private storage, media upload, timeline, composer, camera/voice permission flows, likes, comments, profile grid, and settings | Done |
 | 4. Curated channels MVP | Joinable read-only bot channel schema, seeded starter updates, channel browsing and reader UI | Done |
-| 5. Social identity and privacy | Follow relationships, private profiles, audience model, blocking/reporting rules, retention decisions | Planned |
-| 6. Engagement and discovery | Stories, sharing, public-content search, moderation and abuse limits | Planned |
-| 7. Optional assistance | AI over explicitly public/consented social content only; no private-room message access | Planned |
+| 5. Personal moments and profile | Per-story audience and 24-hour expiry, shareable public posts, refreshed chat UI, personal profile card | Done |
+| 6. Social identity and privacy | Follow relationships, close-friends lists, blocking/reporting rules, retention decisions | Planned |
+| 7. Engagement and discovery | Public-content search, moderation and abuse limits | Planned |
+| 8. Calls and reliability | One-to-one WebRTC MVP is available; group calls, background ringing, TURN, and verified call identities remain planned | Partial |
+| 9. Optional assistance | AI over explicitly public/consented social content only; no private-room message access | Planned |
 
 Ship each phase behind explicit access policies and tests. Never construct the feed by copying room messages: room content is encrypted, membership-scoped, and intentionally excluded.
 

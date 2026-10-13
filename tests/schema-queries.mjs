@@ -103,6 +103,8 @@ const EXPECTED_TABLES = [
   "social_posts",
   "social_post_likes",
   "social_post_comments",
+  "social_stories",
+  "social_story_recipients",
   "broadcast_channels",
   "broadcast_channel_posts",
   "broadcast_channel_members",

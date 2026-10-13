@@ -322,6 +322,9 @@ export function selectRoom(roomId) {
     room.room_type === "direct" ? "Direct conversation" : "Group room";
   renderChatHeader();
   showRoomChat();
+  window.dispatchEvent(new CustomEvent("echorooms:room-selected", {
+    detail: { roomId, roomType: room.room_type },
+  }));
 
   if (dom.info) dom.info.classList.remove("is-hidden");
 

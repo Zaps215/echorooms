@@ -21,6 +21,8 @@ import { initProfile, loadProfile } from "./features/profile.js";
 import { initChat, closeRoom } from "./features/chat.js";
 import { initFeed, loadFeedPosts, startFeedSession } from "./features/feed.js";
 import { initChannels } from "./features/channels.js";
+import { initStories } from "./features/stories.js";
+import { initCalls } from "./features/calls.js";
 
 // --- Feature wiring (listener setup only) ---
 initNavigation();
@@ -32,11 +34,14 @@ initProfile();
 initChat();
 initFeed();
 initChannels();
+initStories();
+initCalls();
 
 // --- Session lifecycle ---
 async function enterApp(user) {
   state.currentUser = user;
   startFeedSession();
+  window.dispatchEvent(new CustomEvent("echorooms:session-started"));
   showAppShell();
   await ensureIdentity();
   await loadRooms();

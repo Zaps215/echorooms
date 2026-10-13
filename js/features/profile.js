@@ -235,8 +235,26 @@ function initProfilePage() {
     dom.profileSettings?.classList.remove("is-hidden");
     if (dom.profileHeadTitle) dom.profileHeadTitle.textContent = "Settings";
   });
+  dom.btnProfileShare?.addEventListener("click", async () => {
+    const username = getCurrentUsername();
+    const text = username ? `Find me on EchoRooms: @${username}` : "Find me on EchoRooms.";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "My EchoRooms profile", text });
+        dom.profileShareFeedback.textContent = "Profile shared.";
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        dom.profileShareFeedback.textContent = "Your handle was copied.";
+      } else {
+        throw new Error("Profile sharing is not supported in this browser.");
+      }
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        dom.profileShareFeedback.textContent = getRequestErrorMessage(error, "Couldn't share your profile. Please try again.");
+      }
+    }
+  });
   dom.btnSettingsEditProfile?.addEventListener("click", openProfileDialog);
-  dom.btnSettingsSignout?.addEventListener("click", () => dom.btnProfileLogout?.click());
   if ("Notification" in window && dom.notificationSettingStatus) {
     if (Notification.permission === "granted") {
       dom.notificationSettingStatus.textContent = "Notifications are enabled for this browser.";
@@ -276,7 +294,7 @@ function initSignOut() {
   };
 
   dom.btnLogout?.addEventListener("click", signOut);
-  dom.btnProfileLogout?.addEventListener("click", signOut);
+  dom.btnSettingsSignout?.addEventListener("click", signOut);
 }
 
 function initAccountDeletion() {
