@@ -1178,20 +1178,22 @@ to { transform: rotate(360deg); }
     position: fixed;
     inset: auto 0 0;
     z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    justify-items: stretch;
     height: calc(66px + env(safe-area-inset-bottom));
-    flex-direction: row;
-    justify-content: space-evenly;
-    gap: 8px;
-    padding: 5px 16px calc(5px + env(safe-area-inset-bottom));
+    gap: 0;
+    padding: 5px 12px calc(5px + env(safe-area-inset-bottom));
     border-top: 1px solid #eeeaf3;
     border-right: 0;
     background: rgba(255, 255, 255, .97);
     backdrop-filter: blur(14px);
   }
   .app-nav-brand { display: none; }
-  .app-nav-links { display: flex; justify-content: center; gap: 6px; width: auto; }
-  .app-nav-link { width: clamp(68px, 22vw, 94px); min-height: 52px; gap: 2px; border-radius: 12px; }
-  .app-nav-profile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 62px; min-height: 52px; margin: 0; padding: 3px 6px; border-radius: 12px; color: #777281; font-size: 10px; font-weight: 600; }
+  .app-nav-links { display: contents; }
+  .app-nav-link { width: 100%; min-height: 52px; gap: 2px; border-radius: 12px; }
+  .app-nav-profile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; min-width: 0; min-height: 52px; margin: 0; padding: 3px 6px; border-radius: 12px; color: #777281; font-size: 10px; font-weight: 600; }
   .app-nav-profile:hover { background: #f7f4fc; box-shadow: none; }
   .app-nav-profile .me-avatar { width: 27px; height: 27px; font-size: 11px; }
   .app-nav-profile-label { line-height: 1.2; }
