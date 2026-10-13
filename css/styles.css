@@ -254,6 +254,7 @@ to { transform: rotate(360deg); }
   letter-spacing: -.01em; }
 .side-brand #btn-new-dm { margin-left: auto; }
 .side-brand #btn-new-room { margin-left: 0; }
+.mobile-brand-logo { display: none; }
 .side-search { display: flex; align-items: center; gap: 8px;
   height: 38px; padding: 0 11px; margin-bottom: 10px;
   border-radius: 10px; background: #e7e9ee; color: var(--muted-2); }
@@ -644,7 +645,7 @@ button, input, textarea { touch-action: manipulation; }
 .feed-post-actions { gap: 14px; }
 .feed-share-button { margin-left: auto; border: 0; padding: 4px; color: var(--muted); background: transparent; cursor: pointer; }
 .feed-share-button:hover { color: #1769aa; }
-.story-strip-wrap { width: auto; max-width: none; margin: 0 calc(-1 * clamp(24px, 5vw, 64px)) 18px; padding: 15px clamp(24px, 5vw, 64px) 13px; border: 1px solid #e8eaed; border-right: 0; border-left: 0; border-radius: 0; background: var(--panel-bg); }
+.story-strip-wrap { width: auto; max-width: none; margin: -26px calc(-1 * clamp(24px, 5vw, 64px)) 18px; padding: 41px clamp(24px, 5vw, 64px) 13px; border: 1px solid #e8eaed; border-right: 0; border-left: 0; border-radius: 0; background: var(--panel-bg); }
 .story-strip-heading { display: flex; align-items: baseline; gap: 9px; margin: 0 0 13px; }
 .story-strip-heading h2 { margin: 0; color: var(--ink); font-size: 14px; font-weight: 700; }
 .story-strip-heading span { color: var(--muted); font-size: 12px; }
@@ -740,7 +741,7 @@ body[data-theme="dark"] .snap-profile-action:not(.snap-profile-secondary) { back
 body[data-theme="dark"] .msg.own .bubble { background: #183b5e; color: #e6f2ff; }
 body[data-theme="dark"] .msg.other .bubble, body[data-theme="dark"] .side-search { background: #292c33; }
 @media (max-width: 720px) {
-  .story-strip-wrap { margin: 0 -12px 14px; padding: 13px 14px; }
+  .story-strip-wrap { margin: -14px -12px 14px; padding: 27px 12px 13px; }
   .story-strip { gap: 13px; }
   .story-viewer-step { top: auto; bottom: max(18px, env(safe-area-inset-bottom)); }
   .story-viewer-prev { left: calc(50% - 52px); }
@@ -1201,7 +1202,13 @@ to { transform: rotate(360deg); }
   .app-nav-profile-label { line-height: 1.2; }
   .feed-view { grid-column: 1; }
   .feed-head { min-height: 68px; padding: 10px 18px; }
+  .mobile-brand-logo { width: 30px; height: 30px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; color: #fff; background: linear-gradient(135deg, #3b82f6, #1d4fd7); box-shadow: 0 4px 12px rgba(37, 99, 235, .24); }
+  .feed-brand { display: flex; align-items: center; gap: 9px; }
   .feed-brand h1 { font-size: 20px; }
+  .app-wrapper.chat-section-active .side-brand { gap: 8px; }
+  .app-wrapper.chat-section-active .side-brand .mobile-brand-logo { width: 28px; height: 28px; border-radius: 8px; }
+  .app-wrapper.chat-section-active .side-brand #btn-new-dm { margin-left: auto; }
+  .app-wrapper.chat-section-active .side-brand #btn-new-room { margin-left: 0; }
   .feed-scroll { padding: 18px 14px calc(84px + env(safe-area-inset-bottom)); }
   .feed-welcome { min-height: 0; gap: 0; padding: 30px 25px; border-radius: 23px; }
   .feed-welcome-copy { max-width: 100%; }
@@ -1546,7 +1553,7 @@ body[data-theme="dark"] .channel-directory-copy > span { color: #aaa4b2; }
   .chat-head-actions .icon-btn { width: 34px; height: 36px; }
   .messages { padding: 16px 12px; }
   .composer { padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); }
-  .story-strip-wrap { margin: 0 -12px 14px; padding: 13px 14px; }
+  .story-strip-wrap { margin: -14px -12px 14px; padding: 27px 12px 13px; }
   .story-strip { gap: 13px; }
   .story-create-dialog .modal-content { padding: 18px; }
   .call-dialog { padding: 16px; }
