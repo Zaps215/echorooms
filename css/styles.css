@@ -644,12 +644,14 @@ button, input, textarea { touch-action: manipulation; }
 .feed-post-actions { gap: 14px; }
 .feed-share-button { margin-left: auto; border: 0; padding: 4px; color: var(--muted); background: transparent; cursor: pointer; }
 .feed-share-button:hover { color: #1769aa; }
-.story-strip-wrap { margin: 8px 0 18px; padding: 15px 18px 13px; border: 1px solid #e8eaed; border-radius: 14px; background: var(--panel-bg); }
+.story-strip-wrap { width: min(100%, 1180px); margin: 0 auto 18px; padding: 15px 18px 13px; border: 1px solid #e8eaed; border-radius: 14px; background: var(--panel-bg); }
 .story-strip-heading { display: flex; align-items: baseline; gap: 9px; margin: 0 0 13px; }
 .story-strip-heading h2 { margin: 0; color: var(--ink); font-size: 14px; font-weight: 700; }
 .story-strip-heading span { color: var(--muted); font-size: 12px; }
-.story-strip { display: flex; gap: 17px; overflow-x: auto; padding: 2px 1px 5px; scrollbar-width: thin; }
-.story-chip { display: grid; gap: 6px; justify-items: center; flex: 0 0 66px; width: 66px; padding: 0; border: 0; color: var(--muted); background: transparent; font: inherit; font-size: 11px; cursor: pointer; }
+.story-strip { display: flex; gap: 17px; overflow-x: auto; overflow-y: hidden; padding: 2px 1px 5px; overscroll-behavior-inline: contain; scroll-snap-type: x proximity; scrollbar-width: none; touch-action: pan-x; -webkit-overflow-scrolling: touch; }
+.story-strip::-webkit-scrollbar { display: none; }
+.story-strip:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.story-chip { display: grid; gap: 6px; justify-items: center; flex: 0 0 66px; width: 66px; padding: 0; border: 0; color: var(--muted); background: transparent; font: inherit; font-size: 11px; cursor: pointer; scroll-snap-align: start; }
 .story-chip > span:last-child { max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .story-ring { display: grid; place-items: center; width: 58px; height: 58px; padding: 3px; border-radius: 50%; background: conic-gradient(#f7a441, #df4c80, #8964c7, #f7a441); }
 .story-chip-own .story-ring { background: #e1e4e8; }
@@ -738,7 +740,7 @@ body[data-theme="dark"] .snap-profile-action:not(.snap-profile-secondary) { back
 body[data-theme="dark"] .msg.own .bubble { background: #183b5e; color: #e6f2ff; }
 body[data-theme="dark"] .msg.other .bubble, body[data-theme="dark"] .side-search { background: #292c33; }
 @media (max-width: 720px) {
-  .story-strip-wrap { margin: 10px 12px 14px; padding: 13px; }
+  .story-strip-wrap { margin: 0 auto 14px; padding: 13px 14px; }
   .story-strip { gap: 13px; }
   .story-viewer-step { top: auto; bottom: max(18px, env(safe-area-inset-bottom)); }
   .story-viewer-prev { left: calc(50% - 52px); }
@@ -1544,7 +1546,7 @@ body[data-theme="dark"] .channel-directory-copy > span { color: #aaa4b2; }
   .chat-head-actions .icon-btn { width: 34px; height: 36px; }
   .messages { padding: 16px 12px; }
   .composer { padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); }
-  .story-strip-wrap { margin: 10px 12px 14px; padding: 13px; }
+  .story-strip-wrap { margin: 0 auto 14px; padding: 13px 14px; }
   .story-strip { gap: 13px; }
   .story-create-dialog .modal-content { padding: 18px; }
   .call-dialog { padding: 16px; }

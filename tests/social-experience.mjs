@@ -11,6 +11,7 @@ const stories = read("js/features/stories.js");
 const calls = read("js/features/calls.js");
 const feed = read("js/features/feed.js");
 const html = read("index.html");
+const styles = read("css/styles.css");
 const dom = read("js/core/dom.js");
 const main = read("js/main.js");
 
@@ -39,6 +40,9 @@ assert.match(calls, /roomType/);
 assert.match(feed, /data-share-post/);
 assert.match(feed, /#post=/);
 assert.match(html, /id="story-strip"/);
+assert.match(html, /<div class="feed-scroll">\s*<section class="story-strip-wrap"[\s\S]*?<\/section>\s*<div class="feed-layout">/);
+assert.match(html, /id="story-strip"[^>]*tabindex="0"[^>]*aria-label="Story updates\. Scroll horizontally to see more\."/);
+assert.match(styles, /\.story-strip \{[^}]*overflow-x: auto;[^}]*scroll-snap-type: x proximity;[^}]*touch-action: pan-x;/);
 assert.match(html, /id="story-audience"/);
 assert.match(html, /id="call-dialog"/);
 assert.match(html, /id="btn-video-call"/);
