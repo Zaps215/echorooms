@@ -987,8 +987,8 @@ to { transform: rotate(360deg); }
 }
 .app-nav-brand { display: block; padding: 0; border: 0; border-radius: 12px; background: transparent; }
 .app-nav .logo-mark {
-  background: linear-gradient(145deg, #7653df, #df5b91);
-  box-shadow: 0 6px 18px rgba(118, 83, 223, .24);
+  background: linear-gradient(135deg, #3b82f6, #1d4fd7);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, .32);
 }
 .app-nav-links { display: grid; gap: 10px; width: 100%; }
 .app-nav-link {
