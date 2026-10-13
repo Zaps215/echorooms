@@ -1628,6 +1628,7 @@ body[data-theme="dark"] .profile-post-text p { color: #d1d6de; }
 .settings-account .settings-delete-account:hover,
 .settings-account .settings-signout:hover { color: var(--accent); }
 .app-wrapper.chat-section-active .side-head { padding: 14px 14px 8px; }
+.app-wrapper.chat-section-active .side-me { display: none; }
 .app-wrapper.chat-section-active .side-brand { padding-bottom: 10px; font-size: 17px; }
 .app-wrapper.chat-section-active .side-search { height: 36px; margin-bottom: 8px; }
 .app-wrapper.chat-section-active .side-tabs { padding-bottom: 6px; }
