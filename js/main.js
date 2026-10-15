@@ -9,6 +9,7 @@
 import "../css/styles.css";
 import { supabase, isSupabaseConfigured } from "./core/supabase.js";
 import { state, resetAppState } from "./core/state.js";
+import { startPresence, stopPresence } from "./core/presence.js";
 import { switchAuthForm, showAppShell, showAuthShell, initNavigation } from "./core/navigation.js";
 import { initConfirm } from "./core/confirm.js";
 import { ensureIdentity, resetKeyring } from "./core/keyring.js";
@@ -40,6 +41,7 @@ initCalls();
 // --- Session lifecycle ---
 async function enterApp(user) {
   state.currentUser = user;
+  startPresence(user.id);
   startFeedSession();
   window.dispatchEvent(new CustomEvent("echorooms:session-started"));
   showAppShell();
@@ -50,6 +52,7 @@ async function enterApp(user) {
 }
 
 function exitToAuth() {
+  stopPresence();
   window.dispatchEvent(new CustomEvent("echorooms:session-ended"));
   closeRoom();
   resetAppState();
@@ -63,6 +66,7 @@ function exitToAuth() {
 // rather than the app shell. Once updateUser succeeds, the resulting
 // USER_UPDATED event re-enters normally.
 function enterRecovery(user) {
+  stopPresence();
   state.currentUser = user;
   closeRoom();
   resetAppState();

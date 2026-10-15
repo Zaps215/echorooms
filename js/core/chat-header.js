@@ -50,6 +50,7 @@ export function chatHeaderView({ room, members, currentUserId }) {
 
   return {
     kind: "direct",
+    peerId: peer?.userId,
     label: name || "?",
     subtitle,
   };

@@ -150,15 +150,16 @@ export async function ensureIdentity() {
 
   let privateKeyB64 = null;
 
-  if (profile.public_key && profile.encrypted_private_key) {
+  const hasStoredIdentity = !!(profile.public_key || profile.encrypted_private_key);
+  if (hasStoredIdentity) {
+    if (!profile.public_key || !profile.encrypted_private_key) return null;
     privateKeyB64 = await unwrapFromDevice(profile);
     if (!privateKeyB64) {
       privateKeyB64 = await unwrapFromPassword(profile, takePendingPassword());
     }
-    if (privateKeyB64) {
-      // Keep a device copy so later password resets on this browser can re-wrap.
-      await saveDeviceCopy(user.id, profile.public_key, privateKeyB64);
-    }
+    if (!privateKeyB64) return null;
+    // Keep a device copy so later password resets on this browser can re-wrap.
+    await saveDeviceCopy(user.id, profile.public_key, privateKeyB64);
   }
 
   if (!privateKeyB64) {

@@ -7,13 +7,21 @@
 import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
-import { showError, hideError, escapeHtml, avatarColor } from "../core/utils.js";
+import {
+  showError,
+  hideError,
+  escapeHtml,
+  avatarColor,
+  getRequestErrorMessage,
+} from "../core/utils.js";
 import { showRoomChat, closeInfo, showChatList, showChannelList } from "../core/navigation.js";
 import { showConfirm } from "../core/confirm.js";
 import { openRoom, closeRoom, getRoomMembers, setComposerNotice, clearLocalMessages } from "./chat.js";
 import { chatHeaderView } from "../core/chat-header.js";
+import { isUserOnline, subscribeToPresence } from "../core/presence.js";
 import { decryptAttachment, isImageMime } from "./media.js";
 import { getIdentity, createRoomKey, getRoomKey, shareRoomKey, canManageRoom } from "../core/keyring.js";
+import * as crypto from "../core/crypto.js";
 import { needsUsername, openUsernameDialog } from "./profile.js";
 import { renderChannelList } from "./channels.js";
 
@@ -28,11 +36,14 @@ const ROOM_PALETTE = [
   "#b45309",
 ];
 
+const ROOM_PREVIEW_COLUMNS = "id, room_id, sender_id, body, iv, ciphertext, deleted_at, created_at";
+
 // Cached member rows + admin flag so member events re-render without a fresh
 // room_members query on every realtime update.
 let membersCache = [];
 let membersCacheRoomId = null;
 let membersCacheIsAdmin = false;
+let roomsLoadError = "";
 
 let otherContact = null; // counterparty profile in a direct chat
 let mediaGridUrls = [];
@@ -84,18 +95,34 @@ function renderRooms(filterText = "") {
     if (state.activeTab === "groups") return r.room_type === "group";
     return true;
   });
+  const loadError = roomsLoadError
+    ? `<div class="rooms-load-error" role="alert">
+         <span>${escapeHtml(roomsLoadError)}</span>
+         <button type="button" data-retry-rooms>Retry</button>
+       </div>`
+    : "";
 
   if (!tabFiltered.length) {
-    dom.roomList.innerHTML =
+    dom.roomList.innerHTML = loadError ||
       '<p style="padding: 16px; text-align: center; color: var(--muted); font-size: 13px;">No rooms found.</p>';
+    dom.roomList.querySelector("[data-retry-rooms]")?.addEventListener("click", () => loadRooms());
     return;
   }
 
   function renderFeedRooms() {
     if (!dom.feedRoomList) return;
     if (!state.rooms.length) {
-      dom.feedRoomList.innerHTML =
-        '<p class="feed-rooms-empty">Your chats will show up here once you start a conversation.</p>';
+      if (roomsLoadError) {
+        dom.feedRoomList.innerHTML = `
+          <p class="feed-rooms-empty" role="alert">
+            ${escapeHtml(roomsLoadError)}
+            <button type="button" data-retry-rooms>Retry</button>
+          </p>`;
+        dom.feedRoomList.querySelector("[data-retry-rooms]")?.addEventListener("click", () => loadRooms());
+      } else {
+        dom.feedRoomList.innerHTML =
+          '<p class="feed-rooms-empty">Your chats will show up here once you start a conversation.</p>';
+      }
       return;
     }
 
@@ -122,22 +149,25 @@ function renderRooms(filterText = "") {
     });
   }
 
-  dom.roomList.innerHTML = tabFiltered
+  dom.roomList.innerHTML = loadError + tabFiltered
     .map((room) => {
       const hash = room.name.charCodeAt(0) % ROOM_PALETTE.length;
       const bg = ROOM_PALETTE[hash];
       const isActive = room.id === state.currentRoomId;
-      const initial = room.name.charAt(0).toUpperCase();
+      const initial = room.name.trim().charAt(0).toUpperCase() || "?";
+      const activityTime = formatRoomTime(room.last_message_at);
+      const preview = room.last_preview || "No messages yet";
 
       return `
-      <button class="room-item ${isActive ? "active" : ""}" data-room-id="${room.id}" type="button">
-        <span class="room-avatar" style="background: ${bg}">${initial}</span>
+      <button class="room-item ${isActive ? "active" : ""}" data-room-id="${room.id}" type="button" aria-pressed="${isActive}">
+        <span class="room-avatar" style="background: ${bg}">${escapeHtml(initial)}</span>
         <span class="room-main">
           <span class="room-top">
             <span class="room-name">${escapeHtml(room.name)}</span>
+            <span class="room-time">${activityTime}</span>
           </span>
           <span class="room-preview">
-            <span class="room-last">Tap to open</span>
+            <span class="room-last">${escapeHtml(preview)}</span>
           </span>
         </span>
       </button>
@@ -148,6 +178,126 @@ function renderRooms(filterText = "") {
   dom.roomList.querySelectorAll(".room-item").forEach((btn) => {
     btn.addEventListener("click", () => selectRoom(btn.dataset.roomId));
   });
+  dom.roomList.querySelector("[data-retry-rooms]")?.addEventListener("click", () => loadRooms());
+}
+
+function formatRoomTime(timestamp) {
+  if (!timestamp) return "";
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const now = new Date();
+  const elapsed = now.getTime() - date.getTime();
+  if (elapsed < 0 || date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+  if (elapsed < 7 * 24 * 60 * 60 * 1000) {
+    return date.toLocaleDateString([], { weekday: "short" });
+  }
+  return date.toLocaleDateString([], { month: "numeric", day: "numeric" });
+}
+
+function roomPreviewText(message) {
+  if (message.deleted_at) return "Message deleted";
+  const body = message.body || (message.ciphertext ? "" : "Shared an attachment");
+  return `${message.sender_id === state.currentUser?.id ? "You: " : ""}${body || "Encrypted message"}`;
+}
+
+function isPreviewCleared(roomId, createdAt) {
+  try {
+    const clearedAt = Number(localStorage.getItem(`echorooms:cleared:${roomId}`)) || 0;
+    return clearedAt > 0 && new Date(createdAt).getTime() < clearedAt;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function loadRoomPreviews(rooms) {
+  if (!supabase || !rooms.length) return;
+  const roomIds = rooms.map((room) => room.id);
+  let data;
+  let error;
+  try {
+    ({ data, error } = await supabase
+      .from("messages")
+      .select(ROOM_PREVIEW_COLUMNS)
+      .in("room_id", roomIds)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(Math.min(1000, Math.max(100, rooms.length * 20))));
+  } catch (requestError) {
+    if (state.rooms !== rooms) return;
+    rooms.forEach((room) => { room.last_preview = "Preview unavailable"; });
+    renderRooms(dom.roomSearch?.value || "");
+    return;
+  }
+
+  if (state.rooms !== rooms) return;
+  if (error) {
+    rooms.forEach((room) => { room.last_preview = "Preview unavailable"; });
+    renderRooms(dom.roomSearch?.value || "");
+    return;
+  }
+
+  const latestByRoom = new Map();
+  for (const message of data || []) {
+    if (!latestByRoom.has(message.room_id)) latestByRoom.set(message.room_id, message);
+  }
+
+  await Promise.all(rooms.map(async (room) => {
+    const message = latestByRoom.get(room.id);
+    if (!message || isPreviewCleared(room.id, message.created_at)) {
+      room.last_preview = "No messages yet";
+      room.last_message_at = null;
+      room.last_message_id = null;
+      return;
+    }
+
+    if (message.iv && message.ciphertext && !message.deleted_at) {
+      try {
+        const key = await getRoomKey(room.id);
+        if (state.rooms !== rooms) return;
+        message.body = key
+          ? await crypto.decryptMessage(key, message.iv, message.ciphertext)
+          : null;
+      } catch (decryptError) {
+        message.body = null;
+      }
+    }
+
+    room.last_message_id = message.id;
+    room.last_message_at = message.created_at;
+    room.last_preview = roomPreviewText(message);
+  }));
+
+  if (state.rooms === rooms) renderRooms(dom.roomSearch?.value || "");
+}
+
+function updateRoomPreview(event) {
+  const { roomId, message } = event.detail || {};
+  const room = state.rooms.find((item) => item.id === roomId);
+  if (!room || !message) return;
+  if (isPreviewCleared(roomId, message.created_at)) return;
+  if (
+    room.last_message_at &&
+    (message.created_at < room.last_message_at ||
+      (message.created_at === room.last_message_at &&
+        room.last_message_id &&
+        message.id < room.last_message_id))
+  ) return;
+  room.last_message_id = message.id;
+  room.last_message_at = message.created_at;
+  room.last_preview = roomPreviewText(message);
+  renderRooms(dom.roomSearch?.value || "");
+}
+
+function clearRoomPreview(event) {
+  const room = state.rooms.find((item) => item.id === event.detail?.roomId);
+  if (!room) return;
+  room.last_preview = "No messages yet";
+  room.last_message_at = null;
+  room.last_message_id = null;
+  renderRooms(dom.roomSearch?.value || "");
 }
 
 async function renderRoomInfo(room) {
@@ -306,6 +456,15 @@ function renderChatHeader() {
   dom.chatAvatar.textContent = view.label.charAt(0).toUpperCase();
   dom.chatAvatar.style.background = avatarColor(view.label);
   if (dom.chatSubtitle) dom.chatSubtitle.textContent = view.subtitle;
+  if (dom.peerPresence) {
+    const showPresence = view.kind === "direct" && !!view.peerId;
+    const online = showPresence && isUserOnline(view.peerId);
+    dom.peerPresence.classList.toggle("is-hidden", !showPresence);
+    dom.peerPresence.dataset.state = online ? "online" : "offline";
+    dom.peerPresence.setAttribute("aria-label", online ? "Online" : "Offline");
+    const label = dom.peerPresence.querySelector(".peer-presence-label");
+    if (label) label.textContent = online ? "Online" : "Offline";
+  }
 }
 
 export function selectRoom(roomId) {
@@ -338,19 +497,36 @@ export function selectRoom(roomId) {
 }
 
 export async function loadRooms() {
-  if (!supabase) return 0;
-  const { data, error } = await supabase
-    .from("room_members")
-    .select("joined_at, deleted_at, rooms(id, name, room_type, created_at, deleted_at)")
-    .eq("user_id", state.currentUser.id)
-    .order("joined_at", { ascending: false });
+  const userId = state.currentUser?.id;
+  if (!supabase || !userId) return 0;
+  let data;
+  let error;
+  try {
+    ({ data, error } = await supabase
+      .from("room_members")
+      .select("joined_at, deleted_at, rooms(id, name, room_type, created_at, last_message_at, deleted_at)")
+      .eq("user_id", userId)
+      .order("joined_at", { ascending: false }));
+  } catch (requestError) {
+    error = requestError;
+  }
+  if (state.currentUser?.id !== userId) return 0;
 
-  if (error) return 0;
+  if (error) {
+    roomsLoadError = getRequestErrorMessage(
+      error,
+      "Your conversations couldn't be loaded. Check your connection and try again."
+    );
+    renderRooms(dom.roomSearch?.value || "");
+    return 0;
+  }
 
+  roomsLoadError = "";
   state.rooms = (data || [])
     .filter((m) => !m.deleted_at && m.rooms && !m.rooms.deleted_at)
     .map((m) => m.rooms);
   renderRooms();
+  loadRoomPreviews(state.rooms);
 
   return state.rooms.length;
 }
@@ -865,6 +1041,9 @@ function initRestoreAndDanger() {
 }
 
 export function initRooms() {
+  subscribeToPresence(renderChatHeader);
+  window.addEventListener("echorooms:message-preview", updateRoomPreview);
+  window.addEventListener("echorooms:room-preview-cleared", clearRoomPreview);
   initRoomDialog();
   initDmDialog();
   initInviteDialog();

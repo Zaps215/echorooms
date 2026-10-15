@@ -22,6 +22,10 @@ assert.equal(
   "Connection to EchoRooms failed. Check your internet connection and try again."
 );
 assert.equal(
+  getRequestErrorMessage({ status: 401 }, "Could not save profile."),
+  "Your session has expired. Sign in again and retry."
+);
+assert.equal(
   getRequestErrorMessage({ status: 400 }, "Could not save profile."),
   "Could not save profile."
 );

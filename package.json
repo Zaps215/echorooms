@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/crypto.mjs && node tests/chat-header.mjs && node tests/auth-errors.mjs && node tests/setup-sql.mjs && node tests/sql-ambiguity.mjs && node tests/schema-queries.mjs && node tests/social-feed.mjs && node tests/channels.mjs && node tests/social-experience.mjs"
+    "test": "node tests/crypto.mjs && node tests/chat-header.mjs && node tests/auth-errors.mjs && node tests/setup-sql.mjs && node tests/sql-ambiguity.mjs && node tests/schema-queries.mjs && node tests/social-feed.mjs && node tests/channels.mjs && node tests/social-experience.mjs && node tests/realtime-messaging.mjs"
   },
   "keywords": [],
   "author": "Emmanuel Akolbilla Alhassan Ananga [Zaps]",

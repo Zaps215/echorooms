@@ -105,6 +105,7 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 - Scheduled messages
 - Read receipts
 - Unread counts and notification preferences
+- Encrypted voice notes in private chats
 - Message bookmarks
 - Rich link previews
 
@@ -112,7 +113,6 @@ Every room is both a live chat and a lightweight workspace. The message stream r
 
 - Temporary disappearing rooms
 - Calendar event objects
-- Voice messages
 - Public communities
 - Integrations with external calendars and task managers
 - Native mobile applications

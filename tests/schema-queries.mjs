@@ -98,6 +98,7 @@ const EXPECTED_TABLES = [
   "rooms",
   "room_members",
   "messages",
+  "message_reactions",
   "room_keys",
   "attachments",
   "social_posts",

@@ -59,6 +59,7 @@ function direct(profile = { display_name: "Maya Chen", username: "maya" }) {
 
 const peer = direct();
 assert.equal(peer.kind, "direct");
+assert.equal(peer.peerId, PEER);
 assert.equal(peer.label, "Maya Chen");
 assert.equal(peer.subtitle, "@maya");
 

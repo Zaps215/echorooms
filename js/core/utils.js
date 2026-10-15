@@ -69,6 +69,9 @@ function isConnectionError(error) {
 
 /** Returns an actionable retry message for network/server failures. */
 export function getRequestErrorMessage(error, fallback) {
+  if (error?.status === 401) {
+    return "Your session has expired. Sign in again and retry.";
+  }
   if (isConnectionError(error)) {
     return "Connection to EchoRooms failed. Check your internet connection and try again.";
   }
