@@ -35,6 +35,7 @@ export const signupUsername = query("signup-username");
 export const signupEmail = query("signup-email");
 export const signupPassword = query("signup-password");
 export const signupConfirm = query("signup-confirm");
+export const signupTerms = query("signup-terms");
 export const forgotEmail = query("forgot-email");
 export const recoveryPassword = query("recovery-password");
 export const recoveryConfirm = query("recovery-confirm");

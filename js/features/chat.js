@@ -1453,9 +1453,17 @@ function renderMessages({ stickToBottom = false } = {}) {
   editingId = null;
 
   if (state.messagesLoading && !state.messages.length) {
-    el.innerHTML = '<div class="chat-welcome"><p>Loading messages…</p></div>';
+    el.setAttribute("aria-busy", "true");
+    el.innerHTML = `
+      <div class="chat-message-skeleton-list" aria-label="Loading messages">
+        ${Array.from({ length: 4 }, (_, index) => `
+          <div class="chat-message-skeleton ${index % 2 ? "other" : "own"}" aria-hidden="true">
+            <i class="skeleton-block"></i><i class="skeleton-block"></i>
+          </div>`).join("")}
+      </div>`;
     return;
   }
+  el.removeAttribute("aria-busy");
 
   if (!state.messages.length) {
     if (roomLoadError) {

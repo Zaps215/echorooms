@@ -1,7 +1,7 @@
 import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
-import { escapeHtml, getRequestErrorMessage } from "../core/utils.js";
+import { escapeHtml, getRequestErrorMessage, logAppError } from "../core/utils.js";
 import { showChannelList, showChannelReader } from "../core/navigation.js";
 
 let channelCatalog = [];
@@ -61,19 +61,35 @@ function renderChannelDirectory(filterText = "") {
 
 export async function renderChannelList(filterText = "") {
   if (!dom.roomList) return;
-  dom.roomList.innerHTML = '<p class="channel-directory-empty">Loading channels…</p>';
+  dom.roomList.innerHTML = `
+    <div class="channel-skeleton-list" aria-label="Loading channels" aria-busy="true">
+      ${Array.from({ length: 4 }, () => `
+        <div class="channel-skeleton">
+          <i class="skeleton-block"></i><span><i class="skeleton-block"></i><i class="skeleton-block"></i><i class="skeleton-block"></i></span>
+        </div>`).join("")}
+    </div>`;
   if (!supabase || !state.currentUser) {
     dom.roomList.innerHTML = '<p class="channel-directory-empty">Sign in to browse channels.</p>';
     return;
   }
 
-  const [channelsResult, membershipsResult, postsResult] = await Promise.all([
-    supabase.from("broadcast_channels").select("id, name, description, bot_name, icon, color, sort_order").order("sort_order"),
-    supabase.from("broadcast_channel_members").select("channel_id, user_id"),
-    supabase.from("broadcast_channel_posts").select("channel_id, body, created_at").order("created_at", { ascending: false }).limit(50),
-  ]);
+  let channelsResult;
+  let membershipsResult;
+  let postsResult;
+  try {
+    [channelsResult, membershipsResult, postsResult] = await Promise.all([
+      supabase.from("broadcast_channels").select("id, name, description, bot_name, icon, color, sort_order").order("sort_order"),
+      supabase.from("broadcast_channel_members").select("channel_id, user_id"),
+      supabase.from("broadcast_channel_posts").select("channel_id, body, created_at").order("created_at", { ascending: false }).limit(50),
+    ]);
+  } catch (error) {
+    logAppError("channels", error);
+    dom.roomList.innerHTML = '<p class="channel-directory-error" role="alert">Channels couldn’t load. Check your connection and try again.</p>';
+    return;
+  }
   if (channelsResult.error || membershipsResult.error || postsResult.error) {
     const error = channelsResult.error || membershipsResult.error || postsResult.error;
+    logAppError("channels", error);
     dom.roomList.innerHTML = `<p class="channel-directory-error">${escapeHtml(getRequestErrorMessage(error, "Couldn't load channels. Please try again."))}</p>`;
     return;
   }
@@ -100,21 +116,37 @@ async function openChannel(channelId) {
   dom.channelReaderAvatar.style.setProperty("--channel-color", iconColor(channel.color));
   dom.channelReaderTitle.textContent = channel.name;
   dom.channelReaderDescription.textContent = channel.description;
-  dom.channelPostList.innerHTML = '<p class="channel-reader-state">Loading the latest updates…</p>';
+  dom.channelPostList.innerHTML = `
+    <div class="channel-post-skeleton-list" aria-label="Loading channel updates" aria-busy="true">
+      ${Array.from({ length: 3 }, () => `
+        <article class="channel-post-skeleton" aria-hidden="true">
+          <i class="skeleton-block"></i><i class="skeleton-block"></i><i class="skeleton-block"></i>
+        </article>`).join("")}
+    </div>`;
   updateMembershipControls();
 
-  const [postsResult, membershipsResult] = await Promise.all([
-    supabase
-      .from("broadcast_channel_posts")
-      .select("id, channel_id, bot_name, body, created_at")
-      .eq("channel_id", channel.id)
-      .order("created_at", { ascending: false })
-      .limit(50),
-    supabase.from("broadcast_channel_members").select("channel_id, user_id").eq("channel_id", channel.id),
-  ]);
+  let postsResult;
+  let membershipsResult;
+  try {
+    [postsResult, membershipsResult] = await Promise.all([
+      supabase
+        .from("broadcast_channel_posts")
+        .select("id, channel_id, bot_name, body, created_at")
+        .eq("channel_id", channel.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase.from("broadcast_channel_members").select("channel_id, user_id").eq("channel_id", channel.id),
+    ]);
+  } catch (error) {
+    if (activeChannel?.id !== channel.id) return;
+    logAppError("channels", error);
+    dom.channelPostList.innerHTML = '<p class="channel-reader-error" role="alert">These updates couldn’t load. Check your connection and try again.</p>';
+    return;
+  }
   if (activeChannel?.id !== channel.id) return;
   if (postsResult.error || membershipsResult.error) {
     const error = postsResult.error || membershipsResult.error;
+    logAppError("channels", error);
     dom.channelPostList.innerHTML = `<p class="channel-reader-error">${escapeHtml(getRequestErrorMessage(error, "Couldn't load this channel. Please try again."))}</p>`;
     return;
   }
@@ -171,6 +203,7 @@ async function toggleChannelMembership() {
     updateMembershipControls();
     renderChannelDirectory(dom.roomSearch?.value || "");
   } catch (error) {
+    logAppError("channels", error);
     dom.channelPostList.insertAdjacentHTML(
       "afterbegin",
       `<p class="channel-reader-error" role="alert">${escapeHtml(getRequestErrorMessage(error, "Couldn't update your channel membership. Please try again."))}</p>`

@@ -13,10 +13,15 @@ import {
   setButtonLoading,
   getRequestErrorMessage,
   updatePasswordStrength,
+  logAppError,
 } from "../core/utils.js";
 import { switchAuthForm, initPasswordToggle } from "../core/navigation.js";
 import { startSignupOtp, startResetOtp } from "./otp.js";
 import { setPendingPassword, rekeyIdentity } from "../core/keyring.js";
+import {
+  markPendingGooglePolicyConsent,
+  clearPendingGooglePolicyConsent,
+} from "../core/policy-consent.js";
 
 function bindSubmit(form, errorEl, handler) {
   if (!form) return;
@@ -50,6 +55,7 @@ async function submitSignin(form, errorEl) {
     // state tidy in case an MFA code prompt interrupts the flow.
     form.reset();
   } catch (error) {
+    logAppError("auth-signin", error);
     showError(errorEl, showAuthError(error));
   } finally {
     setButtonLoading(submitBtn, false);
@@ -89,6 +95,7 @@ async function submitSignup(form, errorEl) {
 
     startSignupOtp(email, displayName, username, dom.signupPassword.value);
   } catch (error) {
+    logAppError("auth-signup", error);
     showError(errorEl, showAuthError(error));
   } finally {
     setButtonLoading(submitBtn, false);
@@ -119,6 +126,7 @@ async function submitForgot(form, errorEl) {
 
     startResetOtp(email);
   } catch (error) {
+    logAppError("auth-password-reset", error);
     showError(errorEl, showAuthError(error));
   } finally {
     setButtonLoading(submitBtn, false);
@@ -153,18 +161,32 @@ async function submitRecovery(form, errorEl) {
     await rekeyIdentity(dom.recoveryPassword.value);
     form.reset();
   } catch (error) {
+    logAppError("auth-password-update", error);
     showError(errorEl, getRequestErrorMessage(error, "Could not update password."));
   } finally {
     setButtonLoading(submitBtn, false);
   }
 }
 
-function handleGoogleOAuth(btn, errorEl) {
+function handleGoogleOAuth(btn, errorEl, requiresPolicyConsent = false) {
   if (!isSupabaseConfigured) {
     showError(errorEl, "Can't connect to Google sign-in right now. Please try again later.");
     return;
   }
   if (!btn) return;
+  if (requiresPolicyConsent && !dom.signupTerms?.checked) {
+    showError(errorEl, "Please agree to the Terms and Privacy Policy before creating an account.");
+    dom.signupTerms?.focus();
+    return;
+  }
+  if (requiresPolicyConsent) {
+    try {
+      markPendingGooglePolicyConsent();
+    } catch (error) {
+      showError(errorEl, getRequestErrorMessage(error, "Could not save your consent. Please try again."));
+      return;
+    }
+  }
   setButtonLoading(btn, true, "Connecting…");
 
   supabase.auth
@@ -174,11 +196,14 @@ function handleGoogleOAuth(btn, errorEl) {
     })
     .then((result) => {
       if (result.error) {
+        if (requiresPolicyConsent) clearPendingGooglePolicyConsent();
         showError(errorEl, showAuthError(result.error));
         setButtonLoading(btn, false);
       }
     })
     .catch((error) => {
+      logAppError("auth-google-oauth", error);
+      if (requiresPolicyConsent) clearPendingGooglePolicyConsent();
       showError(errorEl, showAuthError(error));
       setButtonLoading(btn, false);
     });
@@ -194,7 +219,7 @@ function bindGoogleButtons() {
   if (dom.googleSignupBtn) {
     dom.googleSignupBtn.addEventListener("click", (e) => {
       e.preventDefault();
-      handleGoogleOAuth(e.target.closest("button") || dom.googleSignupBtn, dom.signupError);
+      handleGoogleOAuth(e.target.closest("button") || dom.googleSignupBtn, dom.signupError, true);
     });
   }
 }

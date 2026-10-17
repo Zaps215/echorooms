@@ -4,7 +4,7 @@
 import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
-import { escapeHtml, showError, hideError, setButtonLoading, getRequestErrorMessage } from "../core/utils.js";
+import { escapeHtml, showError, hideError, setButtonLoading, getRequestErrorMessage, logAppError } from "../core/utils.js";
 import { showConfirm } from "../core/confirm.js";
 
 const MEDIA_BUCKET = "social-post-media";
@@ -106,9 +106,18 @@ async function makeSignedUrl(path, bucket = MEDIA_BUCKET) {
   return data.signedUrl;
 }
 
-export async function loadFeedPosts() {
+async function loadFeedPostsInternal() {
   if (!supabase || !state.currentUser || !dom.feedPostList) return;
-  dom.feedPostList.innerHTML = '<p class="feed-loading">Loading your community feed…</p>';
+  dom.feedPostList.setAttribute("aria-busy", "true");
+  dom.feedPostList.innerHTML = `
+    <div class="feed-skeleton-list" aria-label="Loading community feed">
+      ${Array.from({ length: 2 }, () => `
+        <article class="feed-skeleton-card" aria-hidden="true">
+          <div class="feed-skeleton-header"><i class="skeleton-block"></i><span><i class="skeleton-block"></i><i class="skeleton-block"></i></span></div>
+          <i class="skeleton-block feed-skeleton-image"></i>
+          <div class="feed-skeleton-content"><i class="skeleton-block"></i><i class="skeleton-block"></i></div>
+        </article>`).join("")}
+    </div>`;
 
   const { data: posts, error } = await supabase
     .from("social_posts")
@@ -117,6 +126,8 @@ export async function loadFeedPosts() {
     .limit(MAX_POSTS);
 
   if (error) {
+    logAppError("feed", error);
+    dom.feedPostList.removeAttribute("aria-busy");
     dom.feedPostList.innerHTML = `<p class="feed-state-error">${escapeHtml(getRequestErrorMessage(error, "Couldn't load the feed. Please try again."))}</p>`;
     return;
   }
@@ -128,6 +139,8 @@ export async function loadFeedPosts() {
       .eq("id", requestedPostId)
       .maybeSingle();
     if (targetResult.error) {
+      logAppError("feed", targetResult.error);
+      dom.feedPostList.removeAttribute("aria-busy");
       dom.feedPostList.innerHTML = `<p class="feed-state-error">${escapeHtml(getRequestErrorMessage(targetResult.error, "Couldn't open the shared post. Please try again."))}</p>`;
       return;
     }
@@ -135,6 +148,7 @@ export async function loadFeedPosts() {
   }
 
   if (!posts?.length) {
+    dom.feedPostList.removeAttribute("aria-busy");
     dom.feedPostList.innerHTML = `
       <section class="feed-empty">
         <span class="feed-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
@@ -161,10 +175,14 @@ export async function loadFeedPosts() {
       .limit(MAX_POSTS * COMMENT_LIMIT),
   ]);
   if (likesResult.error) {
+    logAppError("feed", likesResult.error);
+    dom.feedPostList.removeAttribute("aria-busy");
     dom.feedPostList.innerHTML = `<p class="feed-state-error">${escapeHtml(getRequestErrorMessage(likesResult.error, "Couldn't load post likes. Please refresh and try again."))}</p>`;
     return;
   }
   if (commentsResult.error) {
+    logAppError("feed", commentsResult.error);
+    dom.feedPostList.removeAttribute("aria-busy");
     dom.feedPostList.innerHTML = `<p class="feed-state-error">${escapeHtml(getRequestErrorMessage(commentsResult.error, "Couldn't load post comments. Please refresh and try again."))}</p>`;
     return;
   }
@@ -174,7 +192,7 @@ export async function loadFeedPosts() {
       try {
         post.media_url = await makeSignedUrl(post.media_path);
       } catch (error) {
-        if (import.meta.env.DEV) console.warn("[feed] Could not load post media:", error);
+        logAppError("feed-media", error);
         post.media_url = "";
       }
     }
@@ -199,23 +217,46 @@ export async function loadFeedPosts() {
       state.currentUser.id
     ))
     .join("");
+  dom.feedPostList.removeAttribute("aria-busy");
   bindRenderedPostInputs();
   notifyProfile();
 }
 
+export async function loadFeedPosts() {
+  try {
+    await loadFeedPostsInternal();
+  } catch (error) {
+    logAppError("feed", error);
+    if (dom.feedPostList) {
+      dom.feedPostList.removeAttribute("aria-busy");
+      dom.feedPostList.innerHTML =
+        '<p class="feed-state-error" role="alert">Your feed couldn’t load. Check your connection, then refresh to try again.</p>';
+    }
+  }
+}
+
 async function loadProfilePosts() {
   if (!supabase || !state.currentUser || !dom.profilePostGrid) return;
-  const [countResult, postsResult] = await Promise.all([
-    supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("author_id", state.currentUser.id),
-    supabase
-      .from("social_posts")
-      .select("id, body, media_path, media_type, created_at")
-      .eq("author_id", state.currentUser.id)
-      .order("created_at", { ascending: false })
-      .limit(24),
-  ]);
+  let countResult;
+  let postsResult;
+  try {
+    [countResult, postsResult] = await Promise.all([
+      supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("author_id", state.currentUser.id),
+      supabase
+        .from("social_posts")
+        .select("id, body, media_path, media_type, created_at")
+        .eq("author_id", state.currentUser.id)
+        .order("created_at", { ascending: false })
+        .limit(24),
+    ]);
+  } catch (error) {
+    logAppError("profile-posts", error);
+    dom.profilePostGrid.innerHTML = '<p role="alert">Your posts couldn’t load. Check your connection and try again.</p>';
+    return;
+  }
   if (countResult.error || postsResult.error) {
-    if (import.meta.env.DEV) console.warn("[feed] Could not load profile posts.", countResult.error || postsResult.error);
+    logAppError("profile-posts", countResult.error || postsResult.error);
+    dom.profilePostGrid.innerHTML = '<p role="alert">Your posts couldn’t load. Check your connection and try again.</p>';
     return;
   }
   if (dom.profilePostCount) dom.profilePostCount.textContent = String(countResult.count || 0);

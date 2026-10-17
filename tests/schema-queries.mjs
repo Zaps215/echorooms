@@ -109,6 +109,7 @@ const EXPECTED_TABLES = [
   "broadcast_channels",
   "broadcast_channel_posts",
   "broadcast_channel_members",
+  "policy_acceptances",
 ];
 
 assert.deepEqual(

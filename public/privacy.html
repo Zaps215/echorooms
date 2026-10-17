@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Privacy Policy · EchoRooms</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/134/134914.png" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <style>
     :root {
       --bg: #ffffff;
@@ -72,59 +69,50 @@
 
     <div class="card">
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated: September 1, 2026</p>
+      <p class="updated">Version 2026-10-17 · Last updated: October 17, 2026</p>
 
-      <p>This Privacy Policy explains what information EchoRooms collects, how we use it, and the choices you have. By using EchoRooms you agree to the collection and use of information as described here. This policy works alongside our <a href="/terms.html">Terms &amp; Conditions</a>.</p>
+      <p>This policy describes the information processed by the current EchoRooms app and the choices available to you. It should be read with our <a href="/terms.html">Terms</a> and <a href="/cookies.html">Cookie Policy</a>. By creating an account, you are asked to confirm that you have read and accept the current versions; the app records the account, policy versions, time, and sign-up method.</p>
 
-      <h2>1. Information We Collect</h2>
+      <h2>1. Information processed</h2>
       <ul>
-        <li><strong>Account data:</strong> when you sign up, we collect your email address, display name, and a password (or Google account, if you choose that method).</li>
-        <li><strong>Profile data:</strong> your username, status text, and avatar image, which you can add or edit.</li>
-        <li><strong>Content you create:</strong> your messages, files, attachments, tasks, and other content posted to rooms.</li>
-        <li><strong>Usage data:</strong> technical information such as your IP address, browser, device type, and how you interact with the service.</li>
+        <li><strong>Account and profile:</strong> email address, display name, username, and any status text or avatar you choose to add. Supabase Auth handles password credentials; EchoRooms does not store your password in its application tables. Google receives information as part of Google sign-in if you choose that option.</li>
+        <li><strong>Private room data:</strong> room membership, sender and recipient identifiers, timestamps, delivery state, reactions, and other message metadata. The current client encrypts private message and attachment content before it is stored. Encryption does not hide metadata, protect a compromised device, or prevent a room member from copying content. Do not use the service for information requiring a guarantee of confidentiality.</li>
+        <li><strong>Social content:</strong> feed posts, photos, comments, likes, and stories. Feed posts and their media are available to signed-in members. Stories may be limited to the audience selected when posted. Social content is not end-to-end encrypted.</li>
+        <li><strong>Device data:</strong> the app stores a Supabase sign-in session and some app settings and encryption material in browser storage on your device. Browser notification permission is requested only if you enable it.</li>
+        <li><strong>Connection data:</strong> Supabase and the hosting/provider services necessarily receive network information such as IP address, request time, and browser/device details when your browser connects. EchoRooms currently has no analytics SDK, advertising tracker, or in-app behavioral analytics.</li>
       </ul>
 
-      <h2>2. How We Use Information</h2>
+      <h2>2. How information is used</h2>
+      <p>Information is used to create and secure accounts, display profiles, deliver room messages and social content, store content you choose to share, provide calls and notifications you initiate, respond to support or legal requests, and operate and troubleshoot the service. The app does not currently contain AI summaries, task extraction, message search, or analytics features; private messages are not sent to an AI provider by the current app.</p>
+
+      <h2>3. Service providers and external connections</h2>
       <ul>
-        <li>To create and manage your account and profile.</li>
-        <li>To deliver messages, files, and other content to the members of your rooms.</li>
-        <li>To provide features such as summaries, tasks, pinned messages, and search.</li>
-        <li>To keep the service secure, prevent abuse, and investigate violations of our terms.</li>
-        <li>To improve, troubleshoot, and maintain the service.</li>
+        <li><strong>Supabase</strong> provides authentication, database, storage, and realtime connections.</li>
+        <li><strong>Google</strong> processes Google sign-in if selected. One-to-one calls also use Google's public STUN endpoint to help establish a peer-to-peer connection; the endpoint can receive network connection details such as your IP address.</li>
+        <li>The app uses no embedded third-party feed, video player, advertising widget, or analytics embed. It currently loads its fonts and icon locally and makes no Google Fonts or Flaticon asset requests.</li>
       </ul>
+      <p>Provider processing, infrastructure region, backups, and retention are subject to the provider configuration used for the deployment. Review each provider's policy for its own practices.</p>
 
-      <h2>3. Data Processed by AI Features</h2>
-      <p>When you request a room summary or extract tasks, the relevant messages from rooms you are a member of may be sent to our AI processing provider to generate that output. We only process content from rooms you can access, and we do not use your content to train AI models for unrelated purposes unless you give separate consent.</p>
+      <h2>4. Sharing and visibility</h2>
+      <p>Room content is available to room members. Room members can copy, capture, or otherwise disclose information they can view. Feed posts are visible to signed-in members, and story visibility follows the selected audience settings. Profile information is visible to signed-in users as described in the app. We do not sell personal information or use it for targeted advertising.</p>
 
-      <h2>4. Third-Party Services</h2>
-      <p>EchoRooms relies on service providers to operate, including:</p>
-      <ul>
-        <li><strong>Supabase</strong> for authentication, database, file storage, and serverless functions.</li>
-        <li><strong>Google</strong> for social sign-in, if you choose to use it.</li>
-        <li><strong>AI providers</strong> for summary and task-extraction features.</li>
-      </ul>
-      <p>These providers may process your data in accordance with their own policies. You can review Supabase's and Google's privacy policies for more details.</p>
+      <h2>5. Security</h2>
+      <p>Private message and attachment content is encrypted by the client before storage; social posts and profile data are not end-to-end encrypted. Access controls are present in the checked-in database setup, but the active production project's configuration and hosting controls must be verified separately. No service can promise absolute security. Keep your device and account credentials secure.</p>
 
-      <h2>5. How We Store &amp; Protect Data</h2>
-      <p>Your data is stored with our hosting providers using industry-standard security measures, including encryption in transit and at rest. Access controls and row-level security help ensure you can only see data from rooms you belong to. No method of transmission or storage is completely secure, so we cannot guarantee absolute security.</p>
+      <h2>6. Retention and deletion</h2>
+      <p>Account and content data are retained while needed to operate the service. Account deletion triggers deletion of account-linked records, but other room members may have retained or copied information they could access, and provider backups may persist for a provider-defined period. Policy acceptance records are linked to the account and are removed when the account is deleted.</p>
 
-      <h2>6. Data Retention &amp; Deletion</h2>
-      <p>We keep your data for as long as your account is active and as needed to provide the service. When you delete your account, we remove or anonymize your personal data in accordance with our deletion process. Copies distributed to other members of your rooms may remain where those members legitimately retain them.</p>
+      <h2>7. Your choices and rights</h2>
+      <p>You can edit profile information, choose story audiences, delete your account, and control browser notifications and device permissions. Depending on where you live, you may have additional rights to access, correct, delete, restrict, or object to processing. The service currently has no dedicated privacy-request form; the operator must publish a working privacy contact before public launch.</p>
 
-      <h2>7. Your Rights</h2>
-      <p>Depending on where you live, you may have rights to access, correct, delete, or restrict your personal data, and to object to or withdraw consent for certain processing. You can manage most profile information directly in your settings. To exercise other rights, contact us using the details below.</p>
+      <h2>8. Cookies and browser storage</h2>
+      <p>The current app does not set its own browser cookies and has no optional analytics or advertising cookies. It uses browser local storage for the Supabase session, app preferences, local chat state, and device encryption material. These are used for core app functions. See our <a href="/cookies.html">Cookie Policy</a>. Because no optional tracking cookies are currently used, the app does not display an advertising/analytics cookie consent banner.</p>
 
-      <h2>8. Cookies &amp; Local Storage</h2>
-      <p>We use local storage and session tokens to keep you signed in and to maintain the state of the app. We do not use third-party advertising cookies.</p>
+      <h2>9. Children</h2>
+      <p>EchoRooms is not intended for children under 13 or anyone below the minimum age required by local law. The current signup flow does not verify age. A parent or guardian who believes a child has provided information should contact the service operator; a working contact address must be published before public launch.</p>
 
-      <h2>9. Children's Privacy</h2>
-      <p>EchoRooms is not directed to children under 13. We do not knowingly collect personal information from children under 13. If you believe a child has provided us personal information, please contact us and we will take steps to remove it.</p>
-
-      <h2>10. Changes to This Policy</h2>
-      <p>We may update this Privacy Policy from time to time. If we make material changes, we will notify you through the service or by email. The "Last updated" date at the top reflects the most recent revision.</p>
-
-      <h2>11. Contact Us</h2>
-      <p>If you have questions or concerns about this Privacy Policy or our data practices, please contact us and we will direct your enquiry to the appropriate person.</p>
+      <h2>10. Changes and contact</h2>
+      <p>We may update this policy and will update the version and effective date when we do. A material change should be presented for renewed acceptance before users continue to use the service. The operator's legal name, place of establishment, and privacy contact are not configured in this codebase and must be supplied before public launch. This policy is an operational draft, not legal advice; have qualified counsel review it for the jurisdictions where the service is offered.</p>
 
       <a class="back" href="/index.html">← Back to EchoRooms</a>
     </div>

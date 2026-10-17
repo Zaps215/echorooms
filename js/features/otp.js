@@ -8,9 +8,10 @@
 import * as dom from "../core/dom.js";
 import { otpState, state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
-import { showError, hideError, showAuthError, getRequestErrorMessage } from "../core/utils.js";
+import { showError, hideError, showAuthError, getRequestErrorMessage, logAppError } from "../core/utils.js";
 import { switchAuthForm } from "../core/navigation.js";
 import { setPendingPassword } from "../core/keyring.js";
+import { recordPolicyAcceptance } from "../core/policy-consent.js";
 
 const OTP_RESEND_SECONDS = 30;
 
@@ -110,6 +111,20 @@ async function verifyOtp(token) {
       const pendingName = otpState.pendingName;
       const pendingUsername = otpState.pendingUsername;
 
+      try {
+        await recordPolicyAcceptance();
+      } catch (error) {
+        logAppError("policy-consent", error);
+        window.dispatchEvent(new CustomEvent("echorooms:profile-save-error", {
+          detail: {
+            message: getRequestErrorMessage(
+              error,
+              "Your account is verified, but we couldn't record your Terms and Privacy Policy acceptance. Please try again from your profile."
+            ),
+          },
+        }));
+      }
+
       // Persist the display name into both auth metadata and the profiles
       // table. updateUser alone only touches auth.users.raw_user_meta_data;
       // leaving it out of profiles would leave display_name = '' in the DB,
@@ -151,6 +166,7 @@ async function verifyOtp(token) {
       dom.recoveryPassword.focus();
     }
   } catch (error) {
+    logAppError("otp-verification", error);
     if (state.currentUser) {
       window.dispatchEvent(new CustomEvent("echorooms:profile-save-error", {
         detail: { message: showAuthError(error) },
@@ -225,6 +241,7 @@ function initOtpEvents() {
       startOtpCountdown(otpState.purpose === "reset" ? 60 : OTP_RESEND_SECONDS);
       focusFirstBox();
     } catch (error) {
+      logAppError("otp-resend", error);
       showError(dom.otpError, showAuthError(error));
     }
   });

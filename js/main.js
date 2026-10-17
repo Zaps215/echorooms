@@ -24,6 +24,7 @@ import { initFeed, loadFeedPosts, startFeedSession } from "./features/feed.js";
 import { initChannels } from "./features/channels.js";
 import { initStories } from "./features/stories.js";
 import { initCalls } from "./features/calls.js";
+import { recordPendingGooglePolicyConsent } from "./core/policy-consent.js";
 
 // --- Feature wiring (listener setup only) ---
 initNavigation();
@@ -40,6 +41,16 @@ initCalls();
 
 // --- Session lifecycle ---
 async function enterApp(user) {
+  try {
+    await recordPendingGooglePolicyConsent();
+  } catch (error) {
+    console.error("[policy-consent] Could not record policy acceptance.", error);
+    window.dispatchEvent(new CustomEvent("echorooms:profile-save-error", {
+      detail: {
+        message: "Your account is signed in, but we couldn't record your Terms and Privacy Policy acceptance. Please contact support before continuing.",
+      },
+    }));
+  }
   state.currentUser = user;
   startPresence(user.id);
   startFeedSession();

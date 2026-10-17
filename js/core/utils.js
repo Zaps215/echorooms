@@ -11,6 +11,11 @@ const AVATAR_PALETTE = [
   "#b45309",
 ];
 
+/** Logs technical details for maintainers without exposing them in the UI. */
+export function logAppError(area, error) {
+  console.error(`[${area}] Request failed.`, error);
+}
+
 /** Writes `message` into an error element and makes it visible. */
 export function showError(errorEl, message) {
   if (!errorEl) return;

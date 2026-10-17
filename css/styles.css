@@ -1754,6 +1754,59 @@ body[data-theme="dark"] .reaction-chip:hover { border-color: #365d82; background
 .app-wrapper.chat-section-active .room-top { min-height: 17px; }
 .app-wrapper.chat-section-active .room-name { font-size: 13.5px; }
 .app-wrapper.chat-section-active .room-last { font-size: 11.5px; }
+
+/* Content-shaped loading placeholders share a single subdued shimmer. */
+.skeleton-block {
+  display: block;
+  overflow: hidden;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #edf0f4 25%, #f7f8fa 42%, #edf0f4 65%);
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.35s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  to { background-position-x: -220%; }
+}
+.room-skeleton-list, .channel-skeleton-list, .channel-post-skeleton-list,
+.feed-skeleton-list, .chat-message-skeleton-list { display: grid; gap: 10px; }
+.room-skeleton { display: flex; align-items: center; gap: 11px; padding: 10px 14px; }
+.room-skeleton-avatar { width: 46px; height: 46px; flex: 0 0 auto; border-radius: 50%; }
+.room-skeleton-copy, .channel-skeleton > span { display: grid; flex: 1; gap: 8px; }
+.room-skeleton-copy .skeleton-block:first-child { width: 54%; height: 13px; }
+.room-skeleton-copy .skeleton-block:last-child { width: 82%; height: 10px; }
+.feed-skeleton-card { overflow: hidden; border: 1px solid #eeeaf3; border-radius: 17px; background: #fff; }
+.feed-skeleton-header { display: flex; align-items: center; gap: 10px; padding: 13px 15px; }
+.feed-skeleton-header > .skeleton-block { width: 38px; height: 38px; border-radius: 50%; }
+.feed-skeleton-header > span { display: grid; flex: 1; gap: 6px; }
+.feed-skeleton-header > span .skeleton-block:first-child { width: 38%; height: 12px; }
+.feed-skeleton-header > span .skeleton-block:last-child { width: 28%; height: 9px; }
+.feed-skeleton-image { width: 100%; aspect-ratio: 1 / 1; border-radius: 0; }
+.feed-skeleton-content { display: grid; gap: 9px; padding: 13px 15px; }
+.feed-skeleton-content .skeleton-block:first-child { width: 18%; height: 12px; }
+.feed-skeleton-content .skeleton-block:last-child { width: 72%; height: 11px; }
+.story-skeleton { display: grid; justify-items: center; gap: 7px; flex: 0 0 66px; }
+.story-skeleton .skeleton-block:first-child { width: 58px; height: 58px; border-radius: 50%; }
+.story-skeleton .skeleton-block:last-child { width: 42px; height: 9px; }
+.channel-skeleton { display: flex; align-items: center; gap: 12px; padding: 12px; }
+.channel-skeleton > .skeleton-block { width: 44px; height: 44px; flex: 0 0 auto; border-radius: 14px; }
+.channel-skeleton > span .skeleton-block:nth-child(1) { width: 48%; height: 12px; }
+.channel-skeleton > span .skeleton-block:nth-child(2) { width: 88%; height: 9px; }
+.channel-skeleton > span .skeleton-block:nth-child(3) { width: 63%; height: 8px; }
+.channel-post-skeleton { display: grid; gap: 10px; margin: 14px 18px; padding: 16px; border: 1px solid #e8edf5; border-radius: 14px; background: #fff; }
+.channel-post-skeleton .skeleton-block:first-child { width: 38%; height: 13px; }
+.channel-post-skeleton .skeleton-block:nth-child(2) { width: 92%; height: 11px; }
+.channel-post-skeleton .skeleton-block:last-child { width: 66%; height: 11px; }
+.chat-message-skeleton-list { gap: 12px; padding: 42px 0 18px; }
+.chat-message-skeleton { display: grid; gap: 7px; width: min(72%, 300px); }
+.chat-message-skeleton.own { justify-self: end; }
+.chat-message-skeleton.other { justify-self: start; }
+.chat-message-skeleton .skeleton-block:first-child { width: 100%; height: 36px; border-radius: 17px; }
+.chat-message-skeleton .skeleton-block:last-child { width: 32%; height: 8px; justify-self: end; }
+.chat-message-skeleton.other .skeleton-block:first-child { border-top-left-radius: 5px; }
+.chat-message-skeleton.own .skeleton-block:first-child { border-top-right-radius: 5px; }
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block { animation: none; }
+}
 .app-wrapper.chat-section-active .chat-head { min-height: 58px; gap: 9px; padding: 8px 16px; }
 .app-wrapper.chat-section-active .chat-avatar { width: 38px; height: 38px; }
 .app-wrapper.chat-section-active .chat-title-group h3 { font-size: 14px; }

@@ -3,7 +3,7 @@
 import * as dom from "../core/dom.js";
 import { state } from "../core/state.js";
 import { supabase } from "../core/supabase.js";
-import { escapeHtml, getRequestErrorMessage, hideError, setButtonLoading, showError } from "../core/utils.js";
+import { escapeHtml, getRequestErrorMessage, hideError, setButtonLoading, showError, logAppError } from "../core/utils.js";
 
 const BUCKET = "social-post-media";
 const MAX_STORY_BYTES = 10 * 1024 * 1024;
@@ -36,13 +36,23 @@ async function loadRecipients() {
   if (!supabase || !state.currentUser || !dom.storyRecipientList) return;
   dom.storyRecipientList.innerHTML = '<p class="story-people-loading">Loading people…</p>';
   dom.storyRecipientList.classList.remove("is-hidden");
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, display_name, username")
-    .neq("id", state.currentUser.id)
-    .order("display_name")
-    .limit(100);
+  let data;
+  let error;
+  try {
+    ({ data, error } = await supabase
+      .from("profiles")
+      .select("id, display_name, username")
+      .neq("id", state.currentUser.id)
+      .order("display_name")
+      .limit(100));
+  } catch (requestError) {
+    logAppError("stories-recipients", requestError);
+    showError(dom.storyCreateError, "People couldn't load. Check your connection and try again.");
+    dom.storyRecipientList.replaceChildren();
+    return;
+  }
   if (error) {
+    logAppError("stories-recipients", error);
     showError(dom.storyCreateError, getRequestErrorMessage(error, "Could not load people. Please try again."));
     dom.storyRecipientList.replaceChildren();
     return;
@@ -78,9 +88,16 @@ function renderStoryStrip() {
   });
 }
 
-export async function loadStories() {
+async function loadStoriesInternal() {
   if (!supabase || !state.currentUser || !dom.storyStrip) return;
   const openStoryId = dom.storyViewer?.open ? stories[viewerIndex]?.id : null;
+  if (!stories.length) {
+    dom.storyStrip.setAttribute("aria-busy", "true");
+    dom.storyStrip.innerHTML = Array.from({ length: 4 }, () => `
+      <div class="story-skeleton" aria-hidden="true">
+        <i class="skeleton-block"></i><i class="skeleton-block"></i>
+      </div>`).join("");
+  }
   const { data, error } = await supabase
     .from("social_stories")
     .select("id, author_id, body, media_path, audience_mode, created_at, expires_at, profiles!social_stories_author_id_fkey(display_name, username, avatar_path)")
@@ -88,6 +105,8 @@ export async function loadStories() {
     .order("created_at", { ascending: false })
     .limit(60);
   if (error) {
+    logAppError("stories", error);
+    dom.storyStrip.removeAttribute("aria-busy");
     dom.storyStrip.innerHTML = `<p class="story-error">${escapeHtml(getRequestErrorMessage(error, "Stories could not load. Refresh to try again."))}</p>`;
     return;
   }
@@ -97,7 +116,7 @@ export async function loadStories() {
         const { data: signed, error: avatarError } = await supabase.storage.from("avatars").createSignedUrl(story.profiles.avatar_path, 3600);
         if (!avatarError) story.avatar_url = signed.signedUrl;
       } catch (avatarError) {
-        if (import.meta.env.DEV) console.warn("[stories] Could not load a profile image.", avatarError);
+        logAppError("stories-avatar", avatarError);
       }
     }
     if (story.media_path) {
@@ -107,12 +126,13 @@ export async function loadStories() {
         const { data: signed, error: mediaError } = await supabase.storage.from(BUCKET).createSignedUrl(story.media_path, ttl);
         if (!mediaError) story.media_url = signed.signedUrl;
       } catch (mediaError) {
-        if (import.meta.env.DEV) console.warn("[stories] Could not load story media.", mediaError);
+        logAppError("stories-media", mediaError);
       }
     }
     return story;
   }));
   renderStoryStrip();
+  dom.storyStrip.removeAttribute("aria-busy");
   window.clearTimeout(expiryTimer);
   const nextExpiry = Math.min(...stories.map((story) => new Date(story.expires_at).getTime()));
   if (Number.isFinite(nextExpiry)) {
@@ -122,6 +142,19 @@ export async function loadStories() {
     viewerIndex = stories.findIndex((story) => story.id === openStoryId);
     if (viewerIndex < 0) dom.storyViewer.close();
     else renderStory();
+  }
+}
+
+export async function loadStories() {
+  try {
+    await loadStoriesInternal();
+  } catch (error) {
+    logAppError("stories", error);
+    if (dom.storyStrip) {
+      dom.storyStrip.removeAttribute("aria-busy");
+      dom.storyStrip.innerHTML =
+        '<p class="story-error" role="alert">Stories couldn’t load. Check your connection and refresh to try again.</p>';
+    }
   }
 }
 

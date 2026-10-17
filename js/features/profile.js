@@ -17,6 +17,7 @@ import {
   setUserAvatar,
   setButtonLoading,
   getRequestErrorMessage,
+  logAppError,
 } from "../core/utils.js";
 import {
   showAuthShell,
@@ -73,16 +74,30 @@ export function openUsernameDialog() {
 /** Loads the signed-in user's profile into the footer, profile page, and edit form. */
 export async function loadProfile() {
   if (!supabase) return;
-  const { data: { user } } = await supabase.auth.getUser();
+  let user;
+  try {
+    const result = await supabase.auth.getUser();
+    if (result.error) throw result.error;
+    user = result.data.user;
+  } catch (error) {
+    logAppError("profile", error);
+    showError(dom.profilePageError, "Your profile couldn't load. Check your connection and try again.");
+    return;
+  }
   if (!user) return;
 
   state.currentUser = user;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .select("display_name, username, status_text, avatar_path")
     .eq("id", user.id)
     .single();
+  if (error) {
+    logAppError("profile", error);
+    showError(dom.profilePageError, "Your profile couldn't load. Check your connection and try again.");
+    return;
+  }
 
   currentProfile = data || currentProfile;
 

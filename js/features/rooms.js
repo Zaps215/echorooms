@@ -13,6 +13,7 @@ import {
   escapeHtml,
   avatarColor,
   getRequestErrorMessage,
+  logAppError,
 } from "../core/utils.js";
 import { showRoomChat, closeInfo, showChatList, showChannelList } from "../core/navigation.js";
 import { showConfirm } from "../core/confirm.js";
@@ -227,6 +228,7 @@ async function loadRoomPreviews(rooms) {
       .limit(Math.min(1000, Math.max(100, rooms.length * 20))));
   } catch (requestError) {
     if (state.rooms !== rooms) return;
+    logAppError("room-preview", requestError);
     rooms.forEach((room) => { room.last_preview = "Preview unavailable"; });
     renderRooms(dom.roomSearch?.value || "");
     return;
@@ -234,7 +236,8 @@ async function loadRoomPreviews(rooms) {
 
   if (state.rooms !== rooms) return;
   if (error) {
-    rooms.forEach((room) => { room.last_preview = "Preview unavailable"; });
+    logAppError("room-preview", error);
+    rooms.forEach((room) => { room.last_preview = "Preview unavailable. Open chat to retry."; });
     renderRooms(dom.roomSearch?.value || "");
     return;
   }
@@ -501,6 +504,16 @@ export async function loadRooms() {
   if (!supabase || !userId) return 0;
   let data;
   let error;
+  if (!state.rooms.length && dom.roomList) {
+    dom.roomList.innerHTML = `
+      <div class="room-skeleton-list" aria-label="Loading conversations" aria-busy="true">
+        ${Array.from({ length: 5 }, () => `
+          <div class="room-skeleton">
+            <span class="skeleton-block room-skeleton-avatar"></span>
+            <span class="room-skeleton-copy"><i class="skeleton-block"></i><i class="skeleton-block"></i></span>
+          </div>`).join("")}
+      </div>`;
+  }
   try {
     ({ data, error } = await supabase
       .from("room_members")
@@ -513,6 +526,7 @@ export async function loadRooms() {
   if (state.currentUser?.id !== userId) return 0;
 
   if (error) {
+    logAppError("rooms", error);
     roomsLoadError = getRequestErrorMessage(
       error,
       "Your conversations couldn't be loaded. Check your connection and try again."
@@ -932,11 +946,13 @@ async function deleteChat() {
   try {
     const { error } = await supabase.rpc("delete_chat", { target_room_id: roomId });
     if (error) {
-      setComposerNotice(`Couldn't delete chat: ${error.message}`);
+      logAppError("rooms", error);
+      setComposerNotice(getRequestErrorMessage(error, "Couldn't delete this chat. Try again."));
       return;
     }
   } catch (err) {
-    setComposerNotice("Couldn't delete chat — check your connection and try again.");
+    logAppError("rooms", err);
+    setComposerNotice(getRequestErrorMessage(err, "Couldn't delete this chat. Try again."));
     return;
   }
   await leaveCurrentRoom(roomId);
@@ -959,11 +975,13 @@ async function dissolveRoom() {
   try {
     const { error } = await supabase.rpc("dissolve_room", { target_room_id: roomId });
     if (error) {
-      setComposerNotice(`Couldn't dissolve room: ${error.message}`);
+      logAppError("rooms", error);
+      setComposerNotice(getRequestErrorMessage(error, "Couldn't close this room. Try again."));
       return;
     }
   } catch (err) {
-    setComposerNotice("Couldn't dissolve room — check your connection and try again.");
+    logAppError("rooms", err);
+    setComposerNotice(getRequestErrorMessage(err, "Couldn't close this room. Try again."));
     return;
   }
   await leaveCurrentRoom(roomId);
