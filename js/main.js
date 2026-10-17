@@ -25,6 +25,11 @@ import { initChannels } from "./features/channels.js";
 import { initStories } from "./features/stories.js";
 import { initCalls } from "./features/calls.js";
 import { recordPendingGooglePolicyConsent } from "./core/policy-consent.js";
+import {
+  initUnreadNotifications,
+  startUnreadTracking,
+  stopUnreadTracking,
+} from "./features/unread.js";
 
 // --- Feature wiring (listener setup only) ---
 initNavigation();
@@ -38,6 +43,7 @@ initFeed();
 initChannels();
 initStories();
 initCalls();
+initUnreadNotifications();
 
 // --- Session lifecycle ---
 async function enterApp(user) {
@@ -53,6 +59,7 @@ async function enterApp(user) {
   }
   state.currentUser = user;
   startPresence(user.id);
+  startUnreadTracking(user.id);
   startFeedSession();
   window.dispatchEvent(new CustomEvent("echorooms:session-started"));
   showAppShell();
@@ -64,6 +71,7 @@ async function enterApp(user) {
 
 function exitToAuth() {
   stopPresence();
+  stopUnreadTracking();
   window.dispatchEvent(new CustomEvent("echorooms:session-ended"));
   closeRoom();
   resetAppState();

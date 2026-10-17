@@ -25,6 +25,7 @@ import { getIdentity, createRoomKey, getRoomKey, shareRoomKey, canManageRoom } f
 import * as crypto from "../core/crypto.js";
 import { needsUsername, openUsernameDialog } from "./profile.js";
 import { renderChannelList } from "./channels.js";
+import { unreadCount } from "./unread.js";
 
 const ROOM_PALETTE = [
   "#2563eb",
@@ -140,6 +141,7 @@ function renderRooms(filterText = "") {
               <span class="feed-room-name">${escapeHtml(room.name)}</span>
               <span class="feed-room-kind">${kind}</span>
             </span>
+            ${unreadBadge(room.id)}
             <span class="feed-room-arrow" aria-hidden="true">↗</span>
           </button>`;
       })
@@ -158,6 +160,7 @@ function renderRooms(filterText = "") {
       const initial = room.name.trim().charAt(0).toUpperCase() || "?";
       const activityTime = formatRoomTime(room.last_message_at);
       const preview = room.last_preview || "No messages yet";
+      const unread = unreadCount(room.id);
 
       return `
       <button class="room-item ${isActive ? "active" : ""}" data-room-id="${room.id}" type="button" aria-pressed="${isActive}">
@@ -169,6 +172,7 @@ function renderRooms(filterText = "") {
           </span>
           <span class="room-preview">
             <span class="room-last">${escapeHtml(preview)}</span>
+            ${unreadBadge(room.id)}
           </span>
         </span>
       </button>
@@ -180,6 +184,13 @@ function renderRooms(filterText = "") {
     btn.addEventListener("click", () => selectRoom(btn.dataset.roomId));
   });
   dom.roomList.querySelector("[data-retry-rooms]")?.addEventListener("click", () => loadRooms());
+}
+
+function unreadBadge(roomId) {
+  const count = unreadCount(roomId);
+  if (!count) return "";
+  const label = count > 99 ? "99+" : String(count);
+  return `<span class="unread-badge" aria-label="${count} unread messages">${label}</span>`;
 }
 
 function formatRoomTime(timestamp) {
@@ -1060,6 +1071,12 @@ function initRestoreAndDanger() {
 
 export function initRooms() {
   subscribeToPresence(renderChatHeader);
+  window.addEventListener("echorooms:unread-counts-updated", () => {
+    renderRooms(dom.roomSearch?.value || "");
+  });
+  window.addEventListener("echorooms:open-room", (event) => {
+    if (event.detail?.roomId) selectRoom(event.detail.roomId);
+  });
   window.addEventListener("echorooms:message-preview", updateRoomPreview);
   window.addEventListener("echorooms:room-preview-cleared", clearRoomPreview);
   initRoomDialog();

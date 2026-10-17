@@ -14,6 +14,7 @@ import { showConfirm } from "../core/confirm.js";
 import { latestMessageCursor, mergeMessageRows } from "../core/message-sync.js";
 import { getRoomKey, ensureRoomKey, canManageRoom, shareMissingKeys } from "../core/keyring.js";
 import * as crypto from "../core/crypto.js";
+import { markCurrentRoomRead } from "./unread.js";
 import {
   isAllowedFile,
   isImageFile,
@@ -1029,6 +1030,10 @@ async function syncMissedMessages(roomId) {
       state.messages = mergeMessageRows(state.messages, visible);
       cursor = latestMessageCursor(batch);
       advanceMessageCursor(batch);
+      const newestIncoming = batch
+        .filter((message) => message.sender_id !== state.currentUser?.id)
+        .at(-1);
+      if (newestIncoming) markCurrentRoomRead(roomId, newestIncoming.created_at);
       await loadAttachments(roomId, batch);
       if (state.currentRoomId !== roomId) break;
       loadMessageReactions(roomId, batch).catch(showReactionLoadError);
@@ -1074,6 +1079,9 @@ async function handleInsert(row) {
   ensureSenderName(msg, row.room_id);
   publishRoomPreview(msg);
   renderMessages({ stickToBottom });
+  if (row.sender_id !== state.currentUser?.id) {
+    markCurrentRoomRead(row.room_id, row.created_at);
+  }
 }
 
 async function handleUpdate(row) {
@@ -1829,6 +1837,10 @@ export async function openRoom(roomId) {
     renderMessages({ stickToBottom: true });
     historyLoadedRoomId = roomId;
     loadMessageReactions(roomId, messages).catch(showReactionLoadError);
+    const newestIncoming = messages
+      .filter((message) => message.sender_id !== state.currentUser?.id)
+      .at(-1);
+    if (newestIncoming) markCurrentRoomRead(roomId, newestIncoming.created_at);
 
     if (!activeRoomKey && visible.length) {
       setComposerNotice(
