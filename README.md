@@ -20,6 +20,14 @@ GitHub Actions runs `npm ci`, the test suite, the production build, and a
 moderate-or-higher dependency audit for pull requests targeting `main` and
 pushes to `main`. The workflow is in `.github/workflows/ci.yml`.
 
+For trusted pull requests targeting `main`, `.github/workflows/copilot-review.yml`
+automatically requests GitHub Copilot as a reviewer when the PR opens, is
+reopened, is marked ready for review, or receives new commits. Copilot posts
+review comments on the pull request; it does not automatically fix the code or
+replace tests and human review. Copilot Code Review must be available for the
+repository/account, and reviews may consume AI credits. The review guidance is
+in `.github/copilot-instructions.md`.
+
 For a production release, require pull requests and the **Tests, build, and
 dependency audit** check in a GitHub ruleset for `main`, and disallow direct
 pushes that bypass the rule. Configure Netlify to use `main` as its production
