@@ -14,6 +14,26 @@ EchoRooms is a realtime messaging workspace built with vanilla HTML, CSS, JavaSc
 npm install
 ```
 
+## CI and production deploys
+
+GitHub Actions runs `npm ci`, the test suite, the production build, and a
+moderate-or-higher dependency audit for pull requests targeting `main` and
+pushes to `main`. The workflow is in `.github/workflows/ci.yml`.
+
+For a production release, require pull requests and the **Tests, build, and
+dependency audit** check in a GitHub ruleset for `main`, and disallow direct
+pushes that bypass the rule. Configure Netlify to use `main` as its production
+branch; `netlify.toml` defines the build command and `dist` publish directory.
+Netlify deploy previews can be enabled for pull requests. With the required
+status check in place, a pull request cannot be merged into the production
+branch while verification is failing.
+
+CI reports failures; it does not automatically rewrite application code.
+Review and merge a proposed fix through a pull request so the same checks run
+again before production. Configure `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY` in Netlify's environment settings. Never add service
+role keys or other secrets to the repository or a client-side `VITE_` variable.
+
 Create a local `.env` file with the project values (copy `.env.example`):
 
 ```text
